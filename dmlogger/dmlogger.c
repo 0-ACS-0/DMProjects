@@ -1,10 +1,9 @@
 /* ---- Library --------------------------------------------------- */
 #include "dmlogger.h"
-#include <stdbool.h>
 
 
 /* ---- Static function prototypes -------------------------------- */
-static void * _dmlogger_logger(void * args);
+static void * _dmlogger_logger_th(void * args);
 
 // Internal output functions:
 static bool __dmlogger_logger_write(dmlogger_pt dmlogger, struct dmlogger_entry * entry);
@@ -35,6 +34,8 @@ void dmlogger_init(dmlogger_pt * dmlogger){
     (*dmlogger)->queue.equeue = calloc((*dmlogger)->queue.capacity, sizeof(struct dmlogger_entry));
     if (!(*dmlogger)->queue.equeue) {dmlogger_deinit(dmlogger); return;}
 
+    if (pthread_cond_init(&(*dmlogger)->queue.empty_cond, NULL)) {dmlogger_deinit(dmlogger); return;}
+
     if (pthread_mutex_init(&(*dmlogger)->queue.prod_mutex, NULL)) {dmlogger_deinit(dmlogger); return;}
     if (pthread_cond_init(&(*dmlogger)->queue.prod_cond, NULL)) {dmlogger_deinit(dmlogger); return;}
     if (pthread_mutex_init(&(*dmlogger)->queue.cons_mutex, NULL)) {dmlogger_deinit(dmlogger); return;}
@@ -46,7 +47,7 @@ void dmlogger_init(dmlogger_pt * dmlogger){
     // Output allocation and configuration - default(as stdio):
     if (pthread_mutex_init(&(*dmlogger)->output.mutex, NULL)) {dmlogger_deinit(dmlogger); return;}
     (*dmlogger)->output.osel = DEFAULT_OUTPUT_OSEL;
-    (*dmlogger)->output.stdio.stream = stdout;
+    (*dmlogger)->output.stdo.stream = stdout;
 
     // Minimum level configuration:
     (*dmlogger)->min_level = DEFAULT_LOG_MINLVL;
@@ -70,7 +71,7 @@ bool dmlogger_run(dmlogger_pt dmlogger){
 
     // Logger thread launch:
     dmlogger->state = DMLOGGER_STATE_RUNNING;
-    if (pthread_create(&dmlogger->logger_th, NULL, _dmlogger_logger, dmlogger)) {dmlogger->state = DMLOGGER_STATE_STOPPED; return false;}
+    if (pthread_create(&dmlogger->logger_th, NULL, _dmlogger_logger_th, dmlogger)) {dmlogger->state = DMLOGGER_STATE_STOPPED; return false;}
     return true;
 }
 
@@ -96,6 +97,8 @@ void dmlogger_deinit(dmlogger_pt * dmlogger){
     pthread_mutex_destroy(&(*dmlogger)->output.mutex);
 
     // Queue free:
+    pthread_cond_destroy(&(*dmlogger)->queue.empty_cond);
+
     pthread_cond_destroy(&(*dmlogger)->queue.cons_cond);
     pthread_mutex_destroy(&(*dmlogger)->queue.cons_mutex);
     pthread_cond_destroy(&(*dmlogger)->queue.prod_cond);
@@ -201,7 +204,7 @@ bool dmlogger_conf_output_stdout(dmlogger_pt dmlogger){
     if ((dmlogger->output.osel == DMLOGGER_OUTPUT_FILE) && (dmlogger->output.file.fd)) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL;}
 
     // Set stream to stdout and output select to stdio:
-    dmlogger->output.stdio.stream = stdout;
+    dmlogger->output.stdo.stream = stdout;
     dmlogger->output.osel = DMLOGGER_OUTPUT_STDOUT;
 
     // Thread-safe on the fly configuration:
@@ -229,7 +232,7 @@ bool dmlogger_conf_output_stderr(dmlogger_pt dmlogger){
     if ((dmlogger->output.osel == DMLOGGER_OUTPUT_FILE) && (dmlogger->output.file.fd)) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL;}
 
     // Set stream to stderr and output select to stdio:
-    dmlogger->output.stdio.stream = stderr;
+    dmlogger->output.stdo.stream = stderr;
     dmlogger->output.osel = DMLOGGER_OUTPUT_STDERR;
 
     // Thread-safe on the fly configuration:
@@ -288,12 +291,14 @@ bool dmlogger_conf_queue_ofpolicy(dmlogger_pt dmlogger, enum dmlogger_queue_ofpo
 
     // Thread-safe policy update mutex:
     pthread_mutex_lock(&dmlogger->queue.prod_mutex);
+    pthread_mutex_lock(&dmlogger->queue.cons_mutex);
 
     // Policy and timeout write in queue data structure:
     dmlogger->queue.of_policy = queue_ofpolicy;
     dmlogger->queue.wait_timeout = (wait_timeout > 0) ? wait_timeout : DEFAULT_QUEUE_WAIT_TIMEOUT;
 
     // Thread-safe policy update mutex:
+    pthread_mutex_unlock(&dmlogger->queue.cons_mutex);
     pthread_mutex_unlock(&dmlogger->queue.prod_mutex);
     return true;
 }
@@ -438,6 +443,42 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
     pthread_cond_signal(&dmlogger->queue.cons_cond);
 }
 
+/*
+    @brief Function to force the complete write of entries withing the queue when called.
+    @note: Blocking behaveour!
+
+    @param dmlogger_pt dmlogger: Reference to dmlogger struct.
+
+    @retval false: If error when flushing.
+    @retval true: If flushed correctly.
+*/
+bool dmlogger_flush(dmlogger_pt dmlogger){
+    // Reference and state check:
+    if (!dmlogger || (dmlogger->state != DMLOGGER_STATE_RUNNING)) return false;
+
+    // Blocks producers and consumer:
+    pthread_mutex_lock(&dmlogger->queue.prod_mutex);
+    pthread_mutex_lock(&dmlogger->queue.cons_mutex);
+
+    // Checks if queue is already empty:
+    if (dmlogger->queue.head == dmlogger->queue.tail) {pthread_mutex_unlock(&dmlogger->queue.cons_mutex); pthread_mutex_unlock(&dmlogger->queue.prod_mutex); return true;}
+
+    // Notify consumer thread:
+    dmlogger->queue.is_flushing = true;
+    pthread_cond_signal(&dmlogger->queue.cons_cond);
+
+    // Wait blocked until the consumer thread finished writting the queue (until queue is empty):
+    while (dmlogger->queue.head != dmlogger->queue.tail){
+        pthread_cond_wait(&dmlogger->queue.empty_cond, &dmlogger->queue.cons_mutex);
+    }
+
+    // Unblocks producers and consumer:
+    dmlogger->queue.is_flushing = false;
+    pthread_mutex_unlock(&dmlogger->queue.cons_mutex);
+    pthread_mutex_unlock(&dmlogger->queue.prod_mutex);
+    return true;
+}
+
 /* ---- Static function implementation ---------------------------- */
 /*
     @brief Function that acts as a consumer of the entry queue, single thread logger.
@@ -446,7 +487,7 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
 
     @retval NULL.
 */
-static void * _dmlogger_logger(void * args){
+static void * _dmlogger_logger_th(void * args){
     // Pointer check and dmlogger cast:
     if (!args) return NULL;
     dmlogger_pt dmlogger = (dmlogger_pt)args;
@@ -467,10 +508,17 @@ static void * _dmlogger_logger(void * args){
         // Queue entry management:
         entry = dmlogger->queue.equeue[dmlogger->queue.head++];
         dmlogger->queue.head %= dmlogger->queue.capacity;
-        pthread_mutex_unlock(&dmlogger->queue.cons_mutex);
 
-        // Notify producers:
-        pthread_cond_signal(&dmlogger->queue.prod_cond);
+        // Notify if queue is empty (used when flushing):
+        if ((dmlogger->queue.head == dmlogger->queue.tail) && dmlogger->queue.is_flushing){
+            pthread_cond_signal(&dmlogger->queue.empty_cond);
+        }
+
+        // Notify producers when poped an entry (used with wait and wait_timeout):
+        if ((dmlogger->queue.of_policy == DMLOGGER_OFPOLICY_WAIT) || (dmlogger->queue.of_policy == DMLOGGER_OFPOLICY_WAIT_TIMEOUT)){
+            pthread_cond_signal(&dmlogger->queue.prod_cond);
+        }
+        pthread_mutex_unlock(&dmlogger->queue.cons_mutex);
 
         // Output file write:
         __dmlogger_logger_write(dmlogger, &entry);
@@ -523,8 +571,8 @@ static bool __dmlogger_logger_write(dmlogger_pt dmlogger, struct dmlogger_entry 
         case DMLOGGER_OUTPUT_STDOUT:
         case DMLOGGER_OUTPUT_STDERR:
             pthread_mutex_lock(&dmlogger->output.mutex);
-            fprintf(dmlogger->output.stdio.stream, "%s\n", fullmsg);
-            fflush(dmlogger->output.stdio.stream);
+            fprintf(dmlogger->output.stdo.stream, "%s\n", fullmsg);
+            fflush(dmlogger->output.stdo.stream);
             pthread_mutex_unlock(&dmlogger->output.mutex);
             break;
 

@@ -33,24 +33,21 @@
 #include <pthread.h>
 #include <time.h>
 #include <string.h>
-#include <errno.h>
 
 /* ---- Defines & macros ------------------------------------------ */
-#define DEFAULT_ENTRY_TIMESTAMPLEN 32
-#define DEFAULT_ENTRY_LEVELLEN 8
-#define DEFAULT_ENTRY_MESSAGELEN 128
-#define DEFAULT_ENTRY_EXTRALEN 32
+#define DEFAULT_ENTRY_TIMESTAMPLEN 32   // 32B   
+#define DEFAULT_ENTRY_LEVELLEN 8        // 8B
+#define DEFAULT_ENTRY_MESSAGELEN 128    // 128B
+#define DEFAULT_ENTRY_EXTRALEN 32       // 32B
 
-#define DEFAULT_OUTPUT_FILE_PATH "./log/"    
-#define DEFAULT_OUTPUT_FILE_BASENAME "log"
-#define DEFAULT_OUTPUT_FILE_PATHLEN 1024
-#define DEFAULT_OUTPUT_FILE_BASENAMELEN 128
-#define DEFAULT_OUTPUT_FILE_EXTRALEN 32
+#define DEFAULT_OUTPUT_FILE_PATHLEN 1024            // 1024B
+#define DEFAULT_OUTPUT_FILE_BASENAMELEN 128         // 128B
+#define DEFAULT_OUTPUT_FILE_EXTRALEN 32             // 32B
 #define DEFAULT_OUTPUT_FILE_ROTATE_MAXSIZE 10000000 // 10MB
-#define DEFAULT_OUTPUT_OSEL 1   // stdout
+#define DEFAULT_OUTPUT_OSEL 1                       // stdout
 
 
-#define DEFAULT_QUEUE_CAPACITY 200      // 200 entries by default.
+#define DEFAULT_QUEUE_CAPACITY 200      // 200 entries.
 #define DEFAULT_QUEUE_OVERFLOW_POLICY 0 // Drop new logs when queue overflow.
 #define DEFAULT_QUEUE_WAIT_TIMEOUT 1    // One second timeout when policy is stablish to wait with timeout.
 #define DEFAULT_LOG_MINLVL 1            // INFO by default.
@@ -61,7 +58,7 @@
                                         ((level) == 4 ? "WARNING" :\
                                         ((level) == 5 ? "ERROR" :\
                                         ((level) == 6 ? "FATAL" :\
-                                        "-"))))))
+                                        "?"))))))
 /* ---- Enumerations ---------------------------------------------- */
 // States of dmlogger (in dmlogger):
 enum dmlogger_state{
@@ -99,35 +96,41 @@ enum dmlogger_output_sel{
 /* ---- Data structures ------------------------------------------- */
 // Output data structure for dmlogger:
 struct dmlogger_output{       
-    enum dmlogger_output_sel osel;          // Selección de método de salida de log.
-    pthread_mutex_t mutex;                     // File output mutex.
+    enum dmlogger_output_sel osel;          // Output selection method.
+    pthread_mutex_t mutex;                  // File output mutex.
+
     union{
+        // File output fields:
         struct {
             char path[DEFAULT_OUTPUT_FILE_PATHLEN];           // File path name to log output.         
             char basename[DEFAULT_OUTPUT_FILE_BASENAMELEN];   // File basename of log output.
+
             time_t date;                                      // File creation date.
             bool date_rot;                                    // File date rotation flag.
             size_t size;                                      // File size in real time.
-            bool size_rot;                                    // File size rotation flag.
             size_t max_size;                                  // File maximum size in Bytes.
-            size_t index;                                     // File index.
+            bool size_rot;                                    // File size rotation flag.
+            
             FILE * fd;                                        // File descriptor.
+            size_t index;                                     // File index.
         }file;
 
+        // Standard output (stdout or stderr) fields:
         struct {
             FILE * stream;                   // Standard output stream.  
-        }stdio;
+        }stdo;
 
+        // Custom output fields:
         struct {
             void (*cwrite_fn)(const char * lmsg, void * cdata);  // Custom function to write output.
-            void * cdata;                                       // Custom data pointer for output.
+            void * cdata;                                        // Custom data pointer for output.
         }custom;
     };                         
 };
 
 // Entry data structure for dmlogger:
 struct dmlogger_entry{
-    char timestamp[DEFAULT_ENTRY_TIMESTAMPLEN];                     // Date string to be logged.
+    char timestamp[DEFAULT_ENTRY_TIMESTAMPLEN];                     // Timestamp string to be logged.
     char level[DEFAULT_ENTRY_LEVELLEN];                             // Level string to be logged.
     char message[DEFAULT_ENTRY_MESSAGELEN];                         // Message string to be logged.
 };
@@ -136,23 +139,30 @@ struct dmlogger_entry{
 struct dmlogger_queue{
     enum dmlogger_queue_ofpolicy of_policy; // Entry queue overflow policy.
     unsigned int wait_timeout;              // Entry queue wait policy timeout in seconds.
+
     struct dmlogger_entry * equeue;         // Entry queue.
+    size_t capacity;                        // Entry queue capacity (max number of entries in queue).
+    size_t head;                            // Entry queue head slot.
+    size_t tail;                            // Entry queue tail slot.
+
+    bool is_flushing;                       // Entry queue flushing flag.
+    pthread_cond_t empty_cond;              // Entry queue empty cond.
+
     pthread_mutex_t prod_mutex;             // Entry queue producer mutex.
     pthread_cond_t prod_cond;               // Entry queue producer cond.
     pthread_mutex_t cons_mutex;             // Entry queue consumer mutex (needed for cons_cond).
     pthread_cond_t cons_cond;               // Entry queue consumer cond.
-    size_t capacity;                        // Entry queue capacity (max number of entries in queue).
-    size_t head;                            // Entry queue head slot.
-    size_t tail;                            // Entry queue tail slot.
 };
 
 // General data structure dmlogger:
 struct dmlogger{
     struct dmlogger_output output;          // Output structure of dmlogger.
     struct dmlogger_queue queue;            // Queue structure of dmlogger.
-    pthread_t logger_th;                    // Logger (consumer) thread - Only one per instance.
+
     enum dmlogger_level min_level;          // Minimum level to be logged of dmlogger.
     enum dmlogger_state state;              // State of dmlogger.
+    
+    pthread_t logger_th;                    // Logger (consumer) thread - Only one per instance.
 };
 
 /* ---- Data types ------------------------------------------------ */
@@ -181,5 +191,6 @@ bool dmlogger_conf_logger_minlvl(dmlogger_pt dmlogger, enum dmlogger_level min_l
 
 // Log (pritnf-style formatting):
 void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * log_fmsg, ...);
+bool dmlogger_flush(dmlogger_pt dmlogger);
 
 #endif
