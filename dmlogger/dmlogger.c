@@ -174,7 +174,6 @@ bool dmlogger_conf_output_file(dmlogger_pt dmlogger, const char * file_path, con
         // Check file size:
         fseek(dmlogger->output.file.fd, 0, SEEK_END);
         dmlogger->output.file.size = ftell(dmlogger->output.file.fd);
-        printf("%ld", dmlogger->output.file.size);
 
         if (dmlogger->output.file.size == -1L) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL; pthread_mutex_unlock(&dmlogger->output.mutex); return false;}
         if (dmlogger->output.file.size == 0){dmlogger->output.file.size = 0; break;}
