@@ -133,6 +133,9 @@ bool dmlogger_conf_output_file(dmlogger_pt dmlogger, const char * file_path, con
     // Thread-safe on the fly configuration:
     pthread_mutex_lock(&dmlogger->output.mutex);
 
+    // Flush the queue before changing output:
+    dmlogger_flush(dmlogger);
+
     // Close previous file (if any):
     if ((dmlogger->output.osel == DMLOGGER_OUTPUT_FILE) && dmlogger->output.file.fd) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL;}
 
@@ -171,12 +174,12 @@ bool dmlogger_conf_output_file(dmlogger_pt dmlogger, const char * file_path, con
         // Check file size:
         fseek(dmlogger->output.file.fd, 0, SEEK_END);
         dmlogger->output.file.size = ftell(dmlogger->output.file.fd);
+        printf("%ld", dmlogger->output.file.size);
 
         if (dmlogger->output.file.size == -1L) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL; pthread_mutex_unlock(&dmlogger->output.mutex); return false;}
-        if (dmlogger->output.file.size == 0){dmlogger->output.file.index = 0; dmlogger->output.file.size = 0; break;}
-        if (dmlogger->output.file.size >= dmlogger->output.file.max_size) {fclose(dmlogger->output.file.fd); dmlogger->output.file.index++;}
+        if (dmlogger->output.file.size == 0){dmlogger->output.file.size = 0; break;}
+        if (dmlogger->output.file.size >= dmlogger->output.file.max_size) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL; dmlogger->output.file.index++;}
     }
-    
     dmlogger->output.osel = DMLOGGER_OUTPUT_FILE;
 
     // Thread-safe on the fly configuration:
@@ -199,6 +202,9 @@ bool dmlogger_conf_output_stdout(dmlogger_pt dmlogger){
 
     // Thread-safe on the fly configuration:
     pthread_mutex_lock(&dmlogger->output.mutex);
+
+    // Flush the queue before changing output:
+    dmlogger_flush(dmlogger);
 
     // If there is any file opened as output, close:
     if ((dmlogger->output.osel == DMLOGGER_OUTPUT_FILE) && (dmlogger->output.file.fd)) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL;}
@@ -227,6 +233,9 @@ bool dmlogger_conf_output_stderr(dmlogger_pt dmlogger){
 
     // Thread-safe on the fly configuration:
     pthread_mutex_lock(&dmlogger->output.mutex);
+
+    // Flush the queue before changing output:
+    dmlogger_flush(dmlogger);
 
     // If there is any file opened as output, close:
     if ((dmlogger->output.osel == DMLOGGER_OUTPUT_FILE) && (dmlogger->output.file.fd)) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL;}
@@ -259,6 +268,9 @@ bool dmlogger_conf_output_custom(dmlogger_pt dmlogger, void (*cwrite_fn)(const c
     
     // Thread-safe on the fly configuration:
     pthread_mutex_lock(&dmlogger->output.mutex);
+
+    // Flush the queue before changing output:
+    dmlogger_flush(dmlogger);
 
     // If there is any file opened as output, close:
     if ((dmlogger->output.osel == DMLOGGER_OUTPUT_FILE) && (dmlogger->output.file.fd)) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL;}
@@ -316,6 +328,9 @@ bool dmlogger_conf_queue_capacity(dmlogger_pt dmlogger, size_t queue_capacity){
     // Reference check:
     if (!dmlogger) return false;
 
+    // Ensure empty queue and all logs writes:
+    dmlogger_flush(dmlogger);
+
     // Thread-safe queue config mutex:
     pthread_mutex_lock(&dmlogger->queue.prod_mutex);
     pthread_mutex_lock(&dmlogger->queue.cons_mutex);
@@ -327,6 +342,9 @@ bool dmlogger_conf_queue_capacity(dmlogger_pt dmlogger, size_t queue_capacity){
 
     dmlogger->queue.equeue = temp_eq;
     dmlogger->queue.capacity = temp_s;
+    dmlogger->queue.head = 0;
+    dmlogger->queue.tail = 0;
+    
     // Thread-safe queue config mutex:
     pthread_mutex_unlock(&dmlogger->queue.prod_mutex);
     pthread_mutex_unlock(&dmlogger->queue.cons_mutex);
@@ -665,7 +683,7 @@ static bool __dmlogger_rotate_file_bysize(dmlogger_pt dmlogger, size_t log_fullm
 
     // Size comparison:
     if ((dmlogger->output.file.size + log_fullmsg_size) <= dmlogger->output.file.max_size) return false;
-    dmlogger->output.file.index++;
+    if (dmlogger->output.file.size) dmlogger->output.file.index++;
     dmlogger->output.file.size = 0;
 
     // Close current file:
