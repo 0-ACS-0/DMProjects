@@ -1,0 +1,199 @@
+/*
+    ============
+      DMSERVER
+    ============
+
+    Dmserver is a simple yet well-balanced server utility designed for Unix systems (same as dmlogger, yup).
+    
+    ... TODO ...
+
+    --------
+    Author: Antonio Carretero Sahuquillo
+    Date: 2025-08-29
+
+    Licensed under the GNU General Public License v3.0 (GPLv3).
+    See https://www.gnu.org/licenses/gpl-3.0.html for details.
+*/
+
+/* ---- Header guard ---------------------------------------------- */
+#ifndef _DMSERVER_HEADER
+#define _DMSERVER_HEADER
+
+/* ---- Libraries ------------------------------------------------- */
+// Standard:
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+// Unix:
+#include <unistd.h>
+
+// Character strings manipulation:
+#include <string.h>
+
+// Error codes to identify error conditions:
+#include <errno.h>
+
+// Threads:
+#include <pthread.h>
+
+// Network:
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h> 
+
+// Events I/O:
+#include <sys/epoll.h>
+
+// OpenSSL (TLS):
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+// Signals:
+#include <signal.h>
+
+// Time for timeout:
+#include <time.h>
+
+// Logging system (from my dm projects :D)
+#include "dmlogger.h"
+
+/* ---- Defines & macros ------------------------------------------ */
+#define DEFAULT_SCONN_SPORT 8080
+#define DEFAULT_SCONN_SFAMILY AF_INET
+#define DEFAULT_SCONN_CERTPATHLEN 128
+#define DEFAULT_SCONN_KEYPATHLEN 128
+
+#define DEFAULT_CCONN_RBUFFERLEN 1024
+#define DEFAULT_CCONN_WBUFFERLEN 1024
+
+#define DEFAULT_WORKER_SUBTHREADS 8
+#define DEFAULT_WORKER_CLISPERSTH 200
+#define DEFAULT_WORKER_CLITIMEOUT 60
+
+/* ---- Enumerations ---------------------------------------------- */
+// Clients state:
+enum dmserver_cconn_state{
+    DMSERVER_CLIENT_UNABLE,
+    DMSERVER_CLIENT_STANDBY,
+    DMSERVER_CLIENT_ESTABLISHED,
+    DMSERVER_CLIENT_CLOSING,
+    DMSERVER_CLIENT_CLOSED
+};
+
+// Server state:
+enum dmserver_state{
+    DMSERVER_STATE_INITIALIZED,
+    DMSERVER_STATE_OPENED,    
+    DMSERVER_STATE_RUNNING,         
+    DMSERVER_STATE_STOPPING,        
+    DMSERVER_STATE_STOPPED,
+    DMSERVER_STATE_CLOSED,           
+};
+
+/* ---- Data structures ------------------------------------------- */
+// Server connection data structre for dmserver:
+struct dmserver_servconn{
+    // Connection data of the server:
+    int sfd;
+    int sport;
+    sa_family_t sfamily;
+    bool ss6only;
+    union{
+        struct sockaddr_in s4;
+        struct sockaddr_in6 s6;
+    }saddr;
+
+    // Secure connection data of the server (including certificate and key paths):
+    const SSL_METHOD * sssl_method;
+    SSL_CTX * sssl_ctx;
+    char sssl_certpath[DEFAULT_SCONN_CERTPATHLEN];
+    char sssl_keypath[DEFAULT_SCONN_KEYPATHLEN];
+};
+
+// Client connection data structure for dmserver:
+struct dmserver_cliconn{
+    // Connection data of a client:
+    int cfd;
+
+    sa_family_t caddr_family;
+    union{
+        struct sockaddr_in c4;
+        struct sockaddr_in6 c6;
+    }caddr;
+    socklen_t caddr_len;
+
+    // Connection data of TLS of a client:
+    SSL * cssl;
+
+    // Read/Write buffers of a clientS:
+    char crbuffer[DEFAULT_CCONN_RBUFFERLEN];
+    pthread_mutex_t crlock;
+    size_t crlen;
+    size_t croff;
+
+    char cwbuffer[DEFAULT_CCONN_WBUFFERLEN];
+    pthread_mutex_t cwlock;
+    size_t cwlen;
+    size_t cwoff;
+
+    // Client state:
+    enum dmserver_cconn_state cstate;
+
+    // Timeout ctl:
+    time_t clastt;
+};
+
+// Workers data structure for dmserver:
+struct dmserver_worker{
+    // Threads (workers) data:
+    pthread_t wthmain;
+    pthread_t wthsub[DEFAULT_WORKER_SUBTHREADS];
+
+    // Clients placeholder for each sub-thread:
+    struct dmserver_cliconn wcclis[DEFAULT_WORKER_SUBTHREADS][DEFAULT_WORKER_CLISPERSTH];
+    int wcepfd[DEFAULT_WORKER_SUBTHREADS];
+    size_t wccount[DEFAULT_WORKER_SUBTHREADS];
+    time_t wctimeout;
+
+    // Callbacks available:
+    void (*on_client_connect)(void * args);
+    void (*on_client_disconnect)(void * args);
+    void (*on_client_timeout)(void * args);
+    void (*on_client_rcv)(void * args);
+    void (*on_client_snd)(void * args);
+};
+
+// DMServer data structure:
+struct dmserver{
+    struct dmserver_servconn sconn;
+    struct dmserver_worker sworker;
+    dmlogger_pt slogger;
+
+    enum dmserver_state sstate;
+};
+
+/* ---- Data types ------------------------------------------------ */
+// DMServe datatype:
+typedef struct dmserver dmserver_t;
+typedef dmserver_t * dmserver_pt;
+
+/* ---- Functions prototypes -------------------------------------- */
+// Initialization / Deinitialization:
+void dmserver_init(dmserver_pt * dmserver);
+void dmserver_deinit(dmserver_pt * dmserver);
+
+// Configuration - General:
+
+// Configuration - Callbacks:
+
+// Open / Run / Stop / Close:
+bool dmserver_open(dmserver_pt dmserver);
+bool dmserver_run();
+bool dmserver_stop();
+bool dmserver_close(dmserver_pt dmserver);
+
+// Broadcast / Unicast:
+
+#endif
