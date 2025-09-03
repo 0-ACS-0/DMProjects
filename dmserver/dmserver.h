@@ -18,6 +18,10 @@
 /* ---- Header guard ---------------------------------------------- */
 #ifndef _DMSERVER_HEADER
 #define _DMSERVER_HEADER
+#include <bits/sockaddr.h>
+#ifndef _GNU_SOURCE 
+#define _GNU_SOURCE
+#endif
 
 /* ---- Libraries ------------------------------------------------- */
 // Standard:
@@ -45,6 +49,7 @@
 
 // Events I/O:
 #include <sys/epoll.h>
+#include <sys/eventfd.h>
 
 // OpenSSL (TLS):
 #include <openssl/ssl.h>
@@ -78,7 +83,6 @@ enum dmserver_cconn_state{
     DMSERVER_CLIENT_UNABLE,
     DMSERVER_CLIENT_STANDBY,
     DMSERVER_CLIENT_ESTABLISHED,
-    DMSERVER_CLIENT_CLOSING,
     DMSERVER_CLIENT_CLOSED
 };
 
@@ -122,7 +126,6 @@ struct dmserver_cliconn{
         struct sockaddr_in c4;
         struct sockaddr_in6 c6;
     }caddr;
-    socklen_t caddr_len;
 
     // Connection data of TLS of a client:
     SSL * cssl;
@@ -148,12 +151,14 @@ struct dmserver_cliconn{
 // Workers data structure for dmserver:
 struct dmserver_worker{
     // Threads (workers) data:
-    pthread_t wthmain;
-    pthread_t wthsub[DEFAULT_WORKER_SUBTHREADS];
+    pthread_t wmainth;
+    int wmainepfd;
+    pthread_t wsubth[DEFAULT_WORKER_SUBTHREADS];
+    int wsubepfd[DEFAULT_WORKER_SUBTHREADS];
+    int wthctl;
 
     // Clients placeholder for each sub-thread:
     struct dmserver_cliconn wcclis[DEFAULT_WORKER_SUBTHREADS][DEFAULT_WORKER_CLISPERSTH];
-    int wcepfd[DEFAULT_WORKER_SUBTHREADS];
     size_t wccount[DEFAULT_WORKER_SUBTHREADS];
     time_t wctimeout;
 
@@ -185,13 +190,22 @@ void dmserver_init(dmserver_pt * dmserver);
 void dmserver_deinit(dmserver_pt * dmserver);
 
 // Configuration - General:
+bool dmserver_conf_certpath(dmserver_pt dmserver, const char * certpath);
+bool dmserver_conf_keypath(dmserver_pt dmserver, const char * keypath);
+bool dmserver_conf_safamily(dmserver_pt dmserver, sa_family_t safamily);
+bool dmserver_conf_ipv6only(dmserver_pt dmserver, bool ipv6only);
 
 // Configuration - Callbacks:
+bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(void *));
+bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_disconnect)(void *));
+bool dmserver_setcb_onclienttimeout(dmserver_pt dmserver, void (*on_client_timeout)(void *));
+bool dmserver_setcb_onclientrcv(dmserver_pt dmserver, void (*on_client_rcv)(void *));
+bool dmserver_setcb_onclientsnd(dmserver_pt dmserver, void (*on_client_snd)(void *));
 
 // Open / Run / Stop / Close:
 bool dmserver_open(dmserver_pt dmserver);
-bool dmserver_run();
-bool dmserver_stop();
+bool dmserver_run(dmserver_pt dmserver);
+bool dmserver_stop(dmserver_pt dmserver);
 bool dmserver_close(dmserver_pt dmserver);
 
 // Broadcast / Unicast:

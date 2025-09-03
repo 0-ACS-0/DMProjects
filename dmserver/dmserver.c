@@ -2,6 +2,12 @@
 #include "dmserver.h"
 
 
+/* ---- Hidden (internal) data structures ------------------------- */
+typedef struct dmserver_subthreads_args{
+    dmserver_pt dmserver;
+    size_t subthindex;
+}dmserver_subthargs_t;
+
 /* ---- Static function prototypes -------------------------------- */
 
 // Internal - Dmserver-sconn init / deinit:
@@ -9,14 +15,15 @@ static bool _dmserver_sconn_init(struct dmserver_servconn * s);
 static bool _dmserver_sconn_deinit(struct dmserver_servconn * s);
 static bool _dmserver_sconn_sslinit(struct dmserver_servconn * s);
 static bool _dmserver_sconn_ssldeinit(struct dmserver_servconn * s);
-static bool _dmserver_sconn_slisten(struct dmserver_servconn * s);
+static bool _dmserver_sconn_listen(struct dmserver_servconn * s);
 
 // Internal - Dmserver-cconn init/reset/set/deinit:
 static bool _dmserver_cconn_init(struct dmserver_cliconn * c);
-static bool _dmserver_cconn_set(struct dmserver_cliconn * c, int cfd, struct sockaddr * caddr, socklen_t caddrlen, SSL * cssl);
-static bool _dmserver_cconn_reset(struct dmserver_cliconn * c);
 static bool _dmserver_cconn_deinit(struct dmserver_cliconn * c);
-
+static bool _dmserver_cconn_set(struct dmserver_cliconn * c, int cfd, struct sockaddr_storage * caddr, SSL * cssl);
+static bool _dmserver_cconn_reset(struct dmserver_cliconn * c);
+static bool _dmserver_cconn_checktimeout(struct dmserver_cliconn * c, time_t timeout_sec);
+static void _dmserver_cconn_disconnect(dmserver_pt dmserver, size_t dmthindex, struct dmserver_cliconn * c);
 
 // Internal - Dmserver-worker main/sub threads:
 static void * _dmserver_worker_main(void * args);
@@ -49,10 +56,18 @@ void dmserver_init(dmserver_pt * dmserver){
     (*dmserver)->sconn.sport = DEFAULT_SCONN_SPORT;
     (*dmserver)->sconn.sfamily = DEFAULT_SCONN_SFAMILY;
 
-    // Dmserver-cconn initialization to defaults:
-    for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){for (size_t j = 0; j < DEFAULT_WORKER_CLISPERSTH; j++){
-        if (!_dmserver_cconn_init(&(*dmserver)->sworker.wcclis[i][j])) {dmserver_deinit(dmserver); return;}
-    }}
+    // Dmserver-cconn (worker) initialization to defaults:
+    (*dmserver)->sworker.wthctl = eventfd(0, EFD_NONBLOCK);
+    if ((*dmserver)->sworker.wthctl == -1){dmserver_deinit(dmserver); return;}
+    (*dmserver)->sworker.wmainepfd = epoll_create1(0);
+    if ((*dmserver)->sworker.wmainepfd == -1){dmserver_deinit(dmserver); return;}
+    for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
+        (*dmserver)->sworker.wsubepfd[i] = epoll_create1(0);
+        if ((*dmserver)->sworker.wsubepfd[i] == -1){dmserver_deinit(dmserver); return;}
+        for (size_t j = 0; j < DEFAULT_WORKER_CLISPERSTH; j++){
+            if (!_dmserver_cconn_init(&(*dmserver)->sworker.wcclis[i][j])) {dmserver_deinit(dmserver); return;}
+        }
+    }
     (*dmserver)->sworker.wctimeout = DEFAULT_WORKER_CLITIMEOUT;
 
     // Dmserver-state initialized:
@@ -72,9 +87,13 @@ void dmserver_deinit(dmserver_pt * dmserver){
     if (((*dmserver)->sstate != DMSERVER_STATE_INITIALIZED) && ((*dmserver)->sstate != DMSERVER_STATE_CLOSED)) return;
 
     // Dmserver-cconn deinitialization:
-    for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){for (size_t j = 0; j < DEFAULT_WORKER_CLISPERSTH; j++){
-        _dmserver_cconn_deinit(&(*dmserver)->sworker.wcclis[i][j]);
-    }}
+    if ((*dmserver)->sworker.wmainepfd != -1) close((*dmserver)->sworker.wmainepfd);
+    for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
+        if ((*dmserver)->sworker.wsubepfd[i] != -1) close((*dmserver)->sworker.wsubepfd[i]);
+        for (size_t j = 0; j < DEFAULT_WORKER_CLISPERSTH; j++){
+            _dmserver_cconn_deinit(&(*dmserver)->sworker.wcclis[i][j]);
+        }
+    }
 
     // Dmserver-logger deinitialization (internally flush and dealloc):
     if ((*dmserver)->slogger) dmlogger_deinit(&(*dmserver)->slogger);
@@ -104,7 +123,7 @@ bool dmserver_open(dmserver_pt dmserver){
     if (!_dmserver_sconn_sslinit(&dmserver->sconn)) {_dmserver_sconn_deinit(&dmserver->sconn); return false;}
 
     // Start listening on server socket:
-    if (!_dmserver_sconn_slisten(&dmserver->sconn)) {_dmserver_sconn_ssldeinit(&dmserver->sconn); _dmserver_sconn_deinit(&dmserver->sconn); return false;}
+    if (!_dmserver_sconn_listen(&dmserver->sconn)) {_dmserver_sconn_ssldeinit(&dmserver->sconn); _dmserver_sconn_deinit(&dmserver->sconn); return false;}
 
     // Server state update:
     dmserver->sstate = DMSERVER_STATE_OPENED;
@@ -130,6 +149,73 @@ bool dmserver_close(dmserver_pt dmserver){
 
     // Server state update:
     dmserver->sstate = DMSERVER_STATE_CLOSED;
+
+    return true;
+}
+
+/*
+    @brief Function to run the server threads and start managing connections.
+
+    @param dmserver_pt * dmserver: Reference to dmserver struct.
+
+    @retval true: Run succeeded.
+    @retval false: Run failed.
+*/
+bool dmserver_run(dmserver_pt dmserver){
+    // Reference & state check:
+    if (!dmserver) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_OPENED) && (dmserver->sstate != DMSERVER_STATE_STOPPED)) return false;
+
+    // Previous state update (thread run depends on it):
+    dmserver->sstate = DMSERVER_STATE_RUNNING;
+
+    // Subordinate threads launch (args freed inside the subordinate thread):
+    dmserver_subthargs_t * args = calloc(DEFAULT_WORKER_SUBTHREADS, sizeof(dmserver_subthargs_t));
+    if (!args) return false; 
+    for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
+        args[i].dmserver = dmserver; args[i].subthindex = i;
+        if (pthread_create(&dmserver->sworker.wsubth[i], NULL, _dmserver_worker_sub, &args[i])){
+            dmserver_stop(dmserver);
+            return false;
+        }
+    }
+
+    // Main thread launch:
+    if(pthread_create(&dmserver->sworker.wmainth, NULL, _dmserver_worker_main, dmserver)){
+        dmserver_stop(dmserver);
+        return false;
+    };
+    return true;
+}
+
+/*
+    @brief Function to stop the server threads and stop managing connections.
+
+    @param dmserver_pt * dmserver: Reference to dmserver struct.
+
+    @retval true: Stop succeeded.
+    @retval false: Stop failed.
+*/
+bool dmserver_stop(dmserver_pt dmserver){
+    // Reference & state check:
+    if (!dmserver) return false;
+    if (dmserver->sstate != DMSERVER_STATE_RUNNING) return false;
+
+    // Previous state update (thread run depends on it):
+    dmserver->sstate = DMSERVER_STATE_STOPPING;
+
+    // Force threads to finish by signaling wthctl and block-wait:
+    write(dmserver->sworker.wthctl, &(bool){true}, sizeof(bool));
+    pthread_join(dmserver->sworker.wmainth, NULL);
+
+    for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
+        write(dmserver->sworker.wthctl, &(bool){true}, sizeof(bool));
+        pthread_join(dmserver->sworker.wsubth[i], NULL);
+    }
+
+    // Update server state:
+    dmserver->sstate = DMSERVER_STATE_STOPPED;
+
 
     return true;
 }
@@ -282,7 +368,7 @@ static bool _dmserver_sconn_ssldeinit(struct dmserver_servconn * s){
     @retval true: Listen succeeded.
     @retval false: Listen failed. 
 */
-static bool _dmserver_sconn_slisten(struct dmserver_servconn * s){
+static bool _dmserver_sconn_listen(struct dmserver_servconn * s){
     // Reference check:
     if (!s) return false;
 
@@ -319,29 +405,65 @@ static bool _dmserver_cconn_init(struct dmserver_cliconn * c){
 }
 
 /*
-    @brief Function to set data to a client slot.
+    @brief Function to deinitialize a client slot.
 
-    @param struct smerver_cliconn *c: Reference to client slot of dmserver-worker.
+    @param struct dmerver_cliconn *c: Reference to client slot of dmserver-worker.
+
+    @retval true: Deinitialization succeeded.
+    @retval false: Deinitialization failed.
+*/
+static bool _dmserver_cconn_deinit(struct dmserver_cliconn * c){
+    // Reference & state check:
+    if (!c) return false;
+    if (c->cstate == DMSERVER_CLIENT_UNABLE) return false;
+    if ((c->cstate != DMSERVER_CLIENT_CLOSED) && (c->cstate != DMSERVER_CLIENT_STANDBY)) return false;
+
+    // Deinitialize connection data:
+    c->cfd = -1;
+    c->caddr_family = AF_UNSPEC;
+
+    // Deinitialize mutex logic:
+    pthread_mutex_destroy(&c->crlock);
+    pthread_mutex_destroy(&c->cwlock);
+
+    // Deinitialize state:
+    c->cstate = DMSERVER_CLIENT_UNABLE;
+    return true;
+}
+
+/*
+    @brief Function to set all the connection data to a client slot.
+    @note: Before setting all the information given, a full connection (accept + ssl) should be stablished 
+    in order to copy correctly all the client socket file descripotr, address structure and ssl reference.
+
+    @param struct dmerver_cliconn *c: Reference to client slot of dmserver-worker.
     @param int cfd: client-socket file descriptor.
-    @param struct sockaddr *caddr: Client connection address.
-    @param socklen_t caddrlen: Length of the client socket address structure.
+    @param struct sockaddr_storage *caddr: Client connection address.
     @param SSL * cssl: Reference to client secure socket layer.
 
     @retval true: Set succeeded.
     @retval false: Set failed.
 */
-static bool _dmserver_cconn_set(struct dmserver_cliconn * c, int cfd, struct sockaddr * caddr, socklen_t caddrlen, SSL * cssl){
+static bool _dmserver_cconn_set(struct dmserver_cliconn * c, int cfd, struct sockaddr_storage * caddr, SSL * cssl){
     // References & values & state checks:
-    if (!c || (cfd < 0) || !caddr || (caddrlen == 0) || !cssl) return false;
+    if (!c || (cfd < 0) || !caddr || !cssl) return false;
     if (c->cstate != DMSERVER_CLIENT_STANDBY) return false;
 
-    // Set connection data:
+    // Set socket file descriptor:
     c->cfd = cfd;
-    c->caddr_family = caddr->sa_family;
-    c->caddr_len = caddrlen;
-    if (c->caddr_family == AF_INET) {if (caddrlen != sizeof(struct sockaddr_in)) return false; memcpy(&c->caddr.c4, caddr, caddrlen);}
-    else if (c->caddr_family == AF_INET6) {if (caddrlen != sizeof(struct sockaddr_in6)) return false; memcpy(&c->caddr.c6, caddr, caddrlen);}
-    else return false;
+
+    // Set the address info and connection data into client (by the given IP protocl):
+    c->caddr_family = caddr->ss_family;
+    if (caddr->ss_family == AF_INET){
+        struct sockaddr_in * addr4 = (struct sockaddr_in *)caddr;
+        c->caddr.c4 = *addr4;
+    } else if (caddr->ss_family == AF_INET6){
+        struct sockaddr_in6 * addr6 = (struct sockaddr_in6 *)caddr;
+        if (IN6_IS_ADDR_V4MAPPED(&addr6->sin6_addr)) {c->caddr.c4.sin_family = AF_INET; c->caddr.c4.sin_port = addr6->sin6_port; memcpy(&c->caddr.c4.sin_addr, &addr6->sin6_addr.s6_addr[12], 4);}
+        else c->caddr.c6 = *addr6;
+    }
+
+    // Set ssl session reference:
     c->cssl = cssl;
 
     // Set last time timeout to now:
@@ -354,8 +476,10 @@ static bool _dmserver_cconn_set(struct dmserver_cliconn * c, int cfd, struct soc
 
 /*
     @brief Function to reset a client slot.
+    @note: Before reseting the information in the client slot, the connection must be closed correctly
+    outside this function, or it will lead to important leaks!
 
-    @param struct smerver_cliconn *c: Reference to client slot of dmserver-worker.
+    @param struct dmerver_cliconn *c: Reference to client slot of dmserver-worker.
 
     @retval true: Reset succeeded.
     @retval false: Reset failed.
@@ -366,16 +490,16 @@ static bool _dmserver_cconn_reset(struct dmserver_cliconn * c){
     if (c->cstate != DMSERVER_CLIENT_CLOSED) return false;
 
     // Reset connection data:
-    c->cfd = -1;
-    c->caddr_family = AF_UNSPEC;
-    c->caddr_len = 0;
-    memset(&c->caddr, 0, sizeof(c->caddr));
     c->cssl = NULL;
-    c->clastt = 0;
+    c->cfd = -1;
     
+    c->caddr_family = AF_UNSPEC;
+    memset(&c->caddr, 0, sizeof(c->caddr));
+    c->clastt = 0;
+
     // Reset read/write buffers:
     pthread_mutex_lock(&c->crlock);
-    memset(c->crbuffer, '\0', DEFAULT_CCONN_RBUFFERLEN);
+    memset(c->crbuffer, 0, DEFAULT_CCONN_RBUFFERLEN);
     c->crlen = c->croff = 0;
     pthread_mutex_unlock(&c->crlock);
 
@@ -391,43 +515,224 @@ static bool _dmserver_cconn_reset(struct dmserver_cliconn * c){
 }
 
 /*
-    @brief Function to deinitialize a client slot.
+    @brief Function to check the client timeout field.
 
-    @param struct smerver_cliconn *c: Reference to client slot of dmserver-worker.
+    @param struct dmserver_cliconn * c: Reference to client to check.
 
-    @retval true: Deinitialization succeeded.
-    @retval false: Deinitialization failed.
+    @retval true: No timeout nor fail occured.
+    @retval false: Error or timeout occured.
 */
-static bool _dmserver_cconn_deinit(struct dmserver_cliconn * c){
-    // Reference & state check:
-    if (!c) return false;
-    if ((c->cstate == DMSERVER_CLIENT_UNABLE) && (c->cstate != DMSERVER_CLIENT_CLOSED) && (c->cstate != DMSERVER_CLIENT_STANDBY)) return false;
+static bool _dmserver_cconn_checktimeout(struct dmserver_cliconn * c, time_t timeout_sec){
+    // Reference check:
+    if (!c || (timeout_sec == 0)) return false;
 
-    // Deinitialize connection data:
-    c->cfd = -1;
-    c->caddr_family = AF_UNSPEC;
-
-    // Deinitialize mutex logic:
-    pthread_mutex_destroy(&c->crlock);
-    pthread_mutex_destroy(&c->cwlock);
-
-    // Deinitialize state:
-    c->cstate = DMSERVER_CLIENT_UNABLE;
+    // Timeout check: 
+    if ((time(NULL) - c->clastt) > timeout_sec) return false;
     return true;
 }
 
+/*
+    @brief Function to safely disconnect a client that is currently connected.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param size_t dmthindex: Index of the dmserver thread where client to disconnect belongs.
+    @param struct dmserver_cliconn * c: Reference to client.
+*/
+static void _dmserver_cconn_disconnect(dmserver_pt dmserver, size_t dmthindex, struct dmserver_cliconn * c){
+    // Reference & state check:
+    if (!c || !dmserver) return;
+    if (c->cstate != DMSERVER_CLIENT_ESTABLISHED) return;
+
+    // Client socket file descriptor deletion from epoll:
+    epoll_ctl(dmserver->sworker.wsubepfd[dmthindex], EPOLL_CTL_DEL, c->cfd, NULL);
+
+    // Disconnection proccess:
+    SSL_shutdown(c->cssl);
+    SSL_free(c->cssl);
+    close(c->cfd);
+
+    // Client state to closed:
+    c->cstate = DMSERVER_CLIENT_CLOSED;
+
+    // Client structure reset:
+    _dmserver_cconn_reset(c);
+    dmserver->sworker.wccount[dmthindex]--;
+
+    // User specific data processing of disconnected client:
+    if (dmserver->sworker.on_client_disconnect) dmserver->sworker.on_client_disconnect(c);
+}
 
 // ======== Dmserver-worker main/sub threads:
 /*
+    @brief Function that implements the main thread of dmserver.
+    Accept connections and distribute clients to subordinated threads.
 
+    @param void * args: Reference to the dmserver struct.
+
+    @retval NULL. (always)
 */
 static void * _dmserver_worker_main(void * args){
+    // Reference check and cast:
+    if (!args) return NULL;
+    dmserver_pt dmserver = (dmserver_pt)args;
+
+    // Prepare the main thread epoll to optimize CPU usage:
+    if (epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_ADD, dmserver->sconn.sfd, &(struct epoll_event){.events=EPOLLIN, .data.fd=dmserver->sconn.sfd}) < 0) return NULL;
+    if (epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_ADD, dmserver->sworker.wthctl, &(struct epoll_event){.events=EPOLLIN, .data.fd=dmserver->sworker.wthctl}) < 0) return NULL;
+    struct epoll_event ev;
+
+    while (dmserver->sstate == DMSERVER_STATE_RUNNING){
+        // Epoll wait for connection (or forced wakeup via wthctl):
+        int nfds = epoll_wait(dmserver->sworker.wmainepfd, &ev, 1, -1);
+        if (nfds < 0) {if (errno == EINTR) continue; break;}
+
+        // If the event is generated by wthctl, continue the loop to force the while loop condition check:
+        if (ev.data.fd == dmserver->sworker.wthctl) continue;
+
+        // Accept connection:
+        int temp_cfd;
+        struct sockaddr_storage temp_caddr;
+        socklen_t temp_caddrlen = sizeof(temp_caddr);
+        temp_cfd = accept4(dmserver->sconn.sfd, (struct sockaddr *)&temp_caddr, &temp_caddrlen, SOCK_NONBLOCK);
+        if (temp_cfd < 0){continue;}
+
+        // Create ssl session:
+        SSL * temp_cssl;
+        temp_cssl = SSL_new(dmserver->sconn.sssl_ctx);
+        if (!temp_cssl) {close(temp_cfd); continue;}
+        SSL_set_fd(temp_cssl, temp_cfd);
+        if (SSL_accept(temp_cssl) <= 0){SSL_shutdown(temp_cssl); SSL_free(temp_cssl); close(temp_cfd); continue;}
+
+        // Distribute client to the less populated subordinate thread and the next free slot:
+        size_t temp_thindex = 0;
+        for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
+            if (dmserver->sworker.wccount[i] < dmserver->sworker.wccount[temp_thindex]) temp_thindex = i;
+        }
+        size_t temp_cindex = 0;
+        for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
+            if (dmserver->sworker.wcclis[temp_thindex][i].cstate == DMSERVER_CLIENT_STANDBY) {temp_cindex = i; break;}
+        }
+
+        // Set the connection data into the selected client slot & add fd to the subthread epoll:
+        if(!_dmserver_cconn_set(&dmserver->sworker.wcclis[temp_thindex][temp_cindex], temp_cfd, &temp_caddr, temp_cssl)) {SSL_shutdown(temp_cssl); SSL_free(temp_cssl); close(temp_cfd); continue;}
+        if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, temp_cfd, &(struct epoll_event){.events=EPOLLIN, .data.ptr=&dmserver->sworker.wcclis[temp_thindex][temp_cindex]}) < 0) {_dmserver_cconn_reset(&dmserver->sworker.wcclis[temp_thindex][temp_cindex]); SSL_shutdown(temp_cssl); SSL_free(temp_cssl); close(temp_cfd); continue;}
+        dmserver->sworker.wccount[temp_thindex]++;
+    }
+
+    // Delete the server socket file descriptor from main thread epoll:
+    epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_DEL, dmserver->sconn.sfd, NULL);
     return NULL;
 }
 
 /*
+    @brief Function that implements the subordinated threads of dmserver.
+    Manage the clients data reception and transmission.
 
+    @param void * args: Reference to the dmserver struct.
+
+    @retval NULL. (always)
 */
 static void * _dmserver_worker_sub(void * args){
+    // Reference check and cast:
+    if (!args) return NULL;
+    dmserver_subthargs_t * dmargs = (dmserver_subthargs_t *)args;
+    dmserver_pt dmserver = dmargs->dmserver;
+    size_t dmthindex = dmargs->subthindex;
+    free(args);
+
+    // Prepare the subordinate thread epoll to optimize CPU usage:
+    if (epoll_ctl(dmserver->sworker.wsubepfd[dmthindex], EPOLL_CTL_ADD, dmserver->sworker.wthctl, &(struct epoll_event){.events=EPOLLIN, .data.fd=dmserver->sworker.wthctl}) < 0) return NULL;
+    struct epoll_event evs[DEFAULT_WORKER_CLISPERSTH];
+
+    while (dmserver->sstate == DMSERVER_STATE_RUNNING){
+        // Epoll wait for events (or forced wakeup via wthctl):
+        int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, DEFAULT_WORKER_CLISPERSTH, -1);
+        if (nfds < 0) {if (errno == EINTR) continue; break;}
+
+        for (size_t i = 0; i < nfds; i++){
+            // If the event is generated by wthctl, break to force the while loop condition check:
+            if (evs[i].data.fd == dmserver->sworker.wthctl) break;
+
+            // Obtain the pointer and check the state of the client that generated the event:
+            struct dmserver_cliconn * dmclient = evs[i].data.ptr;
+            if (!dmclient || (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED)) continue;
+
+            // Check timeout & update:
+            if(!_dmserver_cconn_checktimeout(dmclient, DEFAULT_WORKER_CLITIMEOUT)){
+                if (dmserver->sworker.on_client_timeout) dmserver->sworker.on_client_timeout(dmclient);
+                _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
+                continue;
+            }
+
+            // Handle read:
+            if (evs[i].events & EPOLLIN){
+                // Read lock of client:
+                pthread_mutex_lock(&dmclient->crlock);
+
+                int rb = SSL_read(dmclient->cssl, dmclient->crbuffer + dmclient->croff, DEFAULT_CCONN_RBUFFERLEN - dmclient->croff);
+
+                if (rb > 0){
+                    // Data reception case:
+                    dmclient->crlen += rb;
+
+                    // User specific data processing of received data:
+                    if (dmserver->sworker.on_client_rcv) dmserver->sworker.on_client_rcv(dmclient);
+
+                    // Timeout ctl update:
+                    dmclient->clastt =  time(NULL);
+                } else if ((rb == 0) || (SSL_get_error(dmclient->cssl, rb) == SSL_ERROR_ZERO_RETURN)){
+                    // Client disconnect case:
+                    _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
+
+                } else if ((SSL_get_error(dmclient->cssl, rb) != SSL_ERROR_WANT_READ) && (SSL_get_error(dmclient->cssl, rb) != SSL_ERROR_WANT_WRITE)){
+                    // Comunication error case:
+                    _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
+                }
+
+                // Read unlock of client:
+                pthread_mutex_unlock(&dmclient->crlock);
+            }
+
+            // Handle write:
+            if ((evs[i].events & EPOLLOUT) && (dmclient->cwlen > 0)){
+                // Write lock of client:
+                pthread_mutex_lock(&dmclient->cwlock);
+
+                int wb = SSL_write(dmclient->cssl, dmclient->cwbuffer + dmclient->cwoff, dmclient->cwlen - dmclient->cwoff);
+
+                if (wb > 0){
+                    // Data sended case:
+                    dmclient->cwoff += wb;
+                    if (dmclient->cwoff >= dmclient->cwlen){
+                        // All data sended case:
+                        dmclient->cwoff = 0;
+                        dmclient->cwlen = 0;
+                        if (epoll_ctl(dmserver->sworker.wsubepfd[dmthindex], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN, .data.ptr=dmclient}) < 0){
+                            // Clear write after all data send error case:
+                            _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
+                        } else {
+                            // Write data user callback:
+                            if (dmserver->sworker.on_client_snd) dmserver->sworker.on_client_snd(dmclient);
+                        }
+                    }
+
+                    // Timeout ctl update:
+                    dmclient->clastt =  time(NULL);
+                } else {
+                    // Comunication error case:
+                    _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
+                }
+
+                // Write unlock of clients:
+                pthread_mutex_unlock(&dmclient->cwlock);
+            }
+        }
+    }
+
+    // Completly closes the clients connections at thread exit:
+    for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
+        _dmserver_cconn_disconnect(dmserver, dmthindex, &dmserver->sworker.wcclis[dmthindex][i]);
+    }
+
     return NULL;
 }
