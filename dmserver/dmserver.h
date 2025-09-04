@@ -119,8 +119,17 @@ struct dmserver_servconn{
     char sssl_keypath[DEFAULT_SCONN_KEYPATHLEN];
 };
 
+// Client location data structure for dmserver:
+struct dmserver_cliloc{
+    size_t th_pos;
+    size_t wc_pos;
+};
+
 // Client connection data structure for dmserver:
 struct dmserver_cliconn{
+    // Location of client:
+    struct dmserver_cliloc cloc;
+
     // Connection data of a client:
     int cfd;
 
@@ -182,9 +191,13 @@ struct dmserver{
 };
 
 /* ---- Data types ------------------------------------------------ */
-// DMServe datatype:
+// DMServer datatype:
 typedef struct dmserver dmserver_t;
 typedef dmserver_t * dmserver_pt;
+
+// DMServer client location datatype:
+typedef struct dmserver_cliloc dmserver_cliloc_t;
+typedef dmserver_cliloc_t * dmserver_cliloc_pt;
 
 /* ---- Functions prototypes -------------------------------------- */
 // Initialization / Deinitialization:
@@ -213,6 +226,6 @@ bool dmserver_close(dmserver_pt dmserver);
 
 // Broadcast / Unicast:
 bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata);
-bool dmserver_unicast(dmserver_pt dmserver, int cli_fd);
+bool dmserver_unicast(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc, const char * ucdata);
 
 #endif

@@ -1,18 +1,16 @@
 #include "dmserver.h"
-#include <stdio.h>
 
 // Global server variable:
 dmserver_pt serv;
 
-// Echo function that broadcast to all clients the data read from any client:
+// Echo function that unicast to the same client the data read from himself:
 void echo_fn(void * args){
     // Reference check & cast:
     if (!args) return;
     struct dmserver_cliconn * cli = (struct dmserver_cliconn *)args;
 
     // Broadcast received data to all clients:
-    dmserver_broadcast(serv, cli->crbuffer);
-    memset(cli->crbuffer, 0, DEFAULT_CCONN_RBUFFERLEN);
+    dmserver_unicast(serv, &cli->cloc, cli->crbuffer);
 }
 
 // MAIN:
@@ -40,13 +38,27 @@ int main(int argc, char ** argv){
     if (!dmserver_open(serv)) exit(1);
     if (!dmserver_run(serv)) exit(1);
 
-    // Simple program loop:
+    // Simple program loop (cmd -> exit() / broadcast / unicast):
     char c[12] = "";
     while (strcmp(c, "exit()")){
         printf("Finish server with 'exit()' call>> ");
         fflush(stdout);
         fgets(c, 12, stdin);
         c[strlen(c) - 1] = '\0';
+
+        if (!strcmp(c, "unicast")){
+            int i[2] = {0};
+            printf("> Unicast th_pos: ");
+            scanf("%d", &i[0]);
+            printf("> Unicast wc_pos: ");
+            scanf("%d", &i[1]);
+            getchar();
+            dmserver_unicast(serv, &(dmserver_cliloc_t){.th_pos=i[0], .wc_pos=i[1]}, "Unicast!\n");
+        }
+
+        if (!strcmp(c, "broadcast")){
+            dmserver_broadcast(serv, "Broadcast!\n");
+        }
     }
 
     // Server stop + close:

@@ -1,6 +1,5 @@
 /* ---- Library --------------------------------------------------- */
 #include "dmserver.h"
-#include "dmlogger.h"
 
 
 /* ---- Hidden (internal) data structures ------------------------- */
@@ -21,7 +20,7 @@ static bool _dmserver_sconn_listen(struct dmserver_servconn * s);
 // Internal - Dmserver-cconn init/reset/set/deinit:
 static bool _dmserver_cconn_init(struct dmserver_cliconn * c);
 static bool _dmserver_cconn_deinit(struct dmserver_cliconn * c);
-static bool _dmserver_cconn_set(struct dmserver_cliconn * c, int cfd, struct sockaddr_storage * caddr, SSL * cssl);
+static bool _dmserver_cconn_set(struct dmserver_cliconn * c, dmserver_cliloc_pt cloc, int cfd, struct sockaddr_storage * caddr, SSL * cssl);
 static bool _dmserver_cconn_reset(struct dmserver_cliconn * c);
 static bool _dmserver_cconn_checktimeout(struct dmserver_cliconn * c, time_t timeout_sec);
 static void _dmserver_cconn_disconnect(dmserver_pt dmserver, size_t dmthindex, struct dmserver_cliconn * c);
@@ -261,12 +260,13 @@ bool dmserver_stop(dmserver_pt dmserver){
     @retval true: Broadcast succeeded.
 */
 bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata){
-    // References check:
+    // References & state check:
     if (!dmserver || !bcdata) return false;
+    if (dmserver->sstate != DMSERVER_STATE_RUNNING) return false;
     if (strlen(bcdata) >= DEFAULT_CCONN_WBUFFERLEN) return false;
 
     // Broadcast write to every connected client:
-    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Comenzando broadcast...");
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Starting broadcast...");
     for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){for (size_t j = 0; j < DEFAULT_WORKER_CLISPERSTH; j++){
         struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[i][j];
         if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) continue;
@@ -283,15 +283,58 @@ bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata){
 
         // Enable the output event on his epoll file descriptor:
         if (epoll_ctl(dmserver->sworker.wsubepfd[i], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLOUT, .data.ptr=dmclient}) < 0) {
-            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Broadcast no enviado al cliente %d.\n", dmclient->cfd);
+            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Broadcast not queued to client %d.", dmclient->cfd);
             continue;
         }
-        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Broadcast enviado al cliente %d.", dmclient->cfd);
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Broadcast queued to client %d.", dmclient->cfd);
     }}
-    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Broadcast finalizado.\n");
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Broadcast finalized.\n");
 
     return true;
 }
+
+/*
+    @brief Function to unicast data through the selected client.
+    @note: This function only works if the server is running.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param dmserver_cli
+    @param const char * ucdata: Pointer to unicast data to sent.
+
+    @retval false: Unicast failed.
+    @retval true: Unicast succeeded.
+*/
+bool dmserver_unicast(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc, const char * ucdata){
+    // References & state check:
+    if (!dmserver || !dmcliloc || !ucdata) return false;
+    if (dmserver->sstate != DMSERVER_STATE_RUNNING) return false;
+    if (strlen(ucdata) >= DEFAULT_CCONN_WBUFFERLEN) return false;
+
+    // Client established check:
+    struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[dmcliloc->th_pos][dmcliloc->wc_pos];
+    if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) return false;
+
+    // Copy unicast data to the client write buffer:
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Starting unicast...");
+    pthread_mutex_lock(&dmclient->cwlock);
+
+    strncpy(dmclient->cwbuffer, ucdata, DEFAULT_CCONN_WBUFFERLEN - 1);
+    dmclient->cwbuffer[DEFAULT_CCONN_WBUFFERLEN - 1] = '\0';
+    dmclient->cwlen = strlen(dmclient->cwbuffer);
+    dmclient->cwoff = 0;
+
+    pthread_mutex_unlock(&dmclient->cwlock);
+
+    // Enable the output event on his epoll file descriptor:
+    if (epoll_ctl(dmserver->sworker.wsubepfd[dmcliloc->th_pos], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLOUT, .data.ptr=dmclient}) < 0) {
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Unicast not queued to client %d.", dmclient->cfd);
+        return false;
+    }
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Unicast queued to client %d.", dmclient->cfd);
+
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Unicast finalized.\n");
+    return true;
+}   
 
 // ======== Configuration - General:
 /*
@@ -727,10 +770,14 @@ static bool _dmserver_cconn_deinit(struct dmserver_cliconn * c){
     @retval true: Set succeeded.
     @retval false: Set failed.
 */
-static bool _dmserver_cconn_set(struct dmserver_cliconn * c, int cfd, struct sockaddr_storage * caddr, SSL * cssl){
+static bool _dmserver_cconn_set(struct dmserver_cliconn * c, dmserver_cliloc_pt cloc, int cfd, struct sockaddr_storage * caddr, SSL * cssl){
     // References & values & state checks:
     if (!c || (cfd < 0) || !caddr || !cssl) return false;
     if (c->cstate != DMSERVER_CLIENT_STANDBY) return false;
+
+    // Set the client location:
+    c->cloc.th_pos = cloc->th_pos;
+    c->cloc.wc_pos = cloc->wc_pos;
 
     // Set socket file descriptor:
     c->cfd = cfd;
@@ -771,6 +818,10 @@ static bool _dmserver_cconn_reset(struct dmserver_cliconn * c){
     // Reference & state check:
     if (!c) return false;
     if (c->cstate != DMSERVER_CLIENT_CLOSED) return false;
+
+    // Reset location data:
+    c->cloc.th_pos = 0;
+    c->cloc.wc_pos = 0;
 
     // Reset connection data:
     c->cssl = NULL;
@@ -893,7 +944,7 @@ static void * _dmserver_worker_main(void * args){
         dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d assigned to point (%lu, %lu).", temp_cfd, temp_thindex, temp_cindex);
 
         // Set the connection data into the selected client slot & add fd to the subthread epoll:
-        if(!_dmserver_cconn_set(&dmserver->sworker.wcclis[temp_thindex][temp_cindex], temp_cfd, &temp_caddr, temp_cssl)) {SSL_shutdown(temp_cssl); SSL_free(temp_cssl); close(temp_cfd); continue;}
+        if(!_dmserver_cconn_set(&dmserver->sworker.wcclis[temp_thindex][temp_cindex], &(dmserver_cliloc_t){.th_pos=temp_thindex, .wc_pos=temp_cindex}, temp_cfd, &temp_caddr, temp_cssl)) {SSL_shutdown(temp_cssl); SSL_free(temp_cssl); close(temp_cfd); continue;}
         if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, temp_cfd, &(struct epoll_event){.events=EPOLLIN, .data.ptr=&dmserver->sworker.wcclis[temp_thindex][temp_cindex]}) < 0) {_dmserver_cconn_reset(&dmserver->sworker.wcclis[temp_thindex][temp_cindex]); SSL_shutdown(temp_cssl); SSL_free(temp_cssl); close(temp_cfd); continue;}
         dmserver->sworker.wccount[temp_thindex]++;
 
@@ -1068,8 +1119,10 @@ static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_clicon
             // Timeout ctl update:
             dmclient->clastt =  time(NULL);
             
-            // User specific data processing of received data:
+            // User specific data processing of received data and read buffer reset afterwards:
             if (dmserver->sworker.on_client_rcv) dmserver->sworker.on_client_rcv(dmclient);
+            memset(dmclient->crbuffer, 0, DEFAULT_CCONN_RBUFFERLEN);
+
             
         } else if ((rb == 0) || (rb_err == SSL_ERROR_ZERO_RETURN)){
             // Client disconnect case:
