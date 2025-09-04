@@ -25,14 +25,20 @@
 #define _DMLOGGER_HEADER
 
 /* ---- Libraries ------------------------------------------------- */
+// Standard:
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdbool.h>
 
-#include <pthread.h>
-#include <time.h>
+// Character strings manipulation:
 #include <string.h>
+
+// Threads:
+#include <pthread.h>
+
+// Time:
+#include <time.h>
 
 /* ---- Defines & macros ------------------------------------------ */
 #define DEFAULT_ENTRY_TIMESTAMPLEN 32   // 32B   

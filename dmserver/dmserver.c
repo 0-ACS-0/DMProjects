@@ -1,5 +1,7 @@
 /* ---- Library --------------------------------------------------- */
 #include "dmserver.h"
+#include "dmlogger.h"
+
 
 /* ---- Hidden (internal) data structures ------------------------- */
 typedef struct dmserver_subthreads_args{
@@ -7,8 +9,8 @@ typedef struct dmserver_subthreads_args{
     size_t subthindex;
 }dmserver_subthargs_t;
 
-/* ---- Static function prototypes -------------------------------- */
 
+/* ---- Static function prototypes -------------------------------- */
 // Internal - Dmserver-sconn init / deinit:
 static bool _dmserver_sconn_init(struct dmserver_servconn * s);
 static bool _dmserver_sconn_deinit(struct dmserver_servconn * s);
@@ -31,6 +33,7 @@ static bool _dmserver_helper_sslhandshake(SSL * temp_cssl, int * temp_cfd);
 static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex);
 static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
 static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
+
 
 /* ---- Function implementation ----------------------------------- */
 // ======== Initialization / Deinitialization:
@@ -80,7 +83,7 @@ void dmserver_init(dmserver_pt * dmserver){
 
     // Dmserver-state initialized:
     (*dmserver)->sstate = DMSERVER_STATE_INITIALIZED;
-    dmlogger_log((*dmserver)->slogger, DMLOGGER_LEVEL_INFO, "DMServer initialization completed at (%p).\n", (*dmserver));
+    dmlogger_log((*dmserver)->slogger, DMLOGGER_LEVEL_INFO, "-------- DMServer initialization completed at (%p).\n", (*dmserver));
 }
 
 /*
@@ -95,7 +98,6 @@ void dmserver_deinit(dmserver_pt * dmserver){
     // Check server state when deinitializing:
     if (((*dmserver)->sstate != DMSERVER_STATE_INITIALIZED) && ((*dmserver)->sstate != DMSERVER_STATE_CLOSED)) return;
 
-
     // Dmserver-cconn deinitialization:
     if ((*dmserver)->sworker.wmainepfd != -1) close((*dmserver)->sworker.wmainepfd);
     for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
@@ -106,7 +108,7 @@ void dmserver_deinit(dmserver_pt * dmserver){
     }
 
     // Dmserver-logger deinitialization (internally flush and dealloc):
-    if ((*dmserver)->slogger) {dmlogger_log((*dmserver)->slogger, DMLOGGER_LEVEL_INFO, "DMServer at (%p) deinitialized.\n", (*dmserver)); dmlogger_deinit(&(*dmserver)->slogger);}
+    if ((*dmserver)->slogger) {dmlogger_log((*dmserver)->slogger, DMLOGGER_LEVEL_INFO, "-------- DMServer at (%p) deinitialized.\n", (*dmserver)); dmlogger_deinit(&(*dmserver)->slogger);}
 
     // Dmserver dealloc:
     free((*dmserver));
@@ -139,7 +141,13 @@ bool dmserver_open(dmserver_pt dmserver){
 
     // Server state update:
     dmserver->sstate = DMSERVER_STATE_OPENED;
-    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "DMServer opened.\n");
+
+    char sip_str[INET6_ADDRSTRLEN];
+    const void * addr = (dmserver->sconn.sfamily == AF_INET) ? (void*)&dmserver->sconn.saddr.s4.sin_addr : (void*)&dmserver->sconn.saddr.s6.sin6_addr;
+    inet_ntop(dmserver->sconn.sfamily, addr, sip_str, sizeof(sip_str));
+    int sport_num = dmserver->sconn.sport;
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "DMServer open with address %s:%d.\n", sip_str, sport_num);
+
     return true;
 }
 
@@ -239,13 +247,260 @@ bool dmserver_stop(dmserver_pt dmserver){
     return true;
 }
 
+// ======== Broadcast / Unicast:
+/*
+    @brief Function to broadcast data through all the connected clients.
+    @note: This function only works if the server is running.
+    @note: If an error happens when writting to a single client, that client will be 
+    ignored.
 
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param const char * bcdata: Pointer to broadcast data to sent.
 
+    @retval false: Broadcast failed.
+    @retval true: Broadcast succeeded.
+*/
+bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata){
+    // References check:
+    if (!dmserver || !bcdata) return false;
+    if (strlen(bcdata) >= DEFAULT_CCONN_WBUFFERLEN) return false;
 
+    // Broadcast write to every connected client:
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Comenzando broadcast...");
+    for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){for (size_t j = 0; j < DEFAULT_WORKER_CLISPERSTH; j++){
+        struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[i][j];
+        if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) continue;
 
+        // Copy broadcast data to the client write buffer:
+        pthread_mutex_lock(&dmclient->cwlock);
 
+        strncpy(dmclient->cwbuffer, bcdata, DEFAULT_CCONN_WBUFFERLEN - 1);
+        dmclient->cwbuffer[DEFAULT_CCONN_WBUFFERLEN - 1] = '\0';
+        dmclient->cwlen = strlen(dmclient->cwbuffer);
+        dmclient->cwoff = 0;
 
+        pthread_mutex_unlock(&dmclient->cwlock);
 
+        // Enable the output event on his epoll file descriptor:
+        if (epoll_ctl(dmserver->sworker.wsubepfd[i], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLOUT, .data.ptr=dmclient}) < 0) {
+            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Broadcast no enviado al cliente %d.\n", dmclient->cfd);
+            continue;
+        }
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Broadcast enviado al cliente %d.", dmclient->cfd);
+    }}
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Broadcast finalizado.\n");
+
+    return true;
+}
+
+// ======== Configuration - General:
+/*
+    @brief Function to configure the port where the server will operate.
+    @note: The port value must be between 1024 and 49151 (registered ports) and 
+    the configuration must be done after initialization OR after server closed.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param int port: Port number.
+
+    @retval true: Port assign succeeded.
+    @retval false: Port assign failed.
+*/
+bool dmserver_conf_port(dmserver_pt dmserver, int port){
+    // Reference & state & values bound check:
+    if (!dmserver) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+    if ((port < 1024) || (port > 49151)) return false;
+
+    // Assignation to server port:
+    dmserver->sconn.sport = port;
+    return true;
+}
+
+/*
+    @brief Function to configure the socket addres family to operate the server.
+    @note: This function must be called after initialization OR after closing the server, not
+    inbetween.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param sa_family_t safamily: Address family to use.
+
+    @retval true: Socket address family assign succeeded.
+    @retval false: Socket address family assign failed.
+*/
+bool dmserver_conf_safamily(dmserver_pt dmserver, sa_family_t safamily){
+    // Reference & state & values check:
+    if (!dmserver) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+    if ((safamily != AF_INET) && (safamily != AF_INET6)) return false;
+
+    // Assignation to server address family:
+    dmserver->sconn.sfamily = safamily;
+
+    return true;
+}
+
+/*
+    @brief Function to configure (when family selected is IPv6) if accept only IPv6 addresses or both v6 and v4.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param bool ipv6only: Boolean to enable or disable IPv6 addresses only.
+
+    @retval true: Assignation succeeded.
+    @retval false: Assignation failed.
+*/
+bool dmserver_conf_ipv6only(dmserver_pt dmserver, bool ipv6only){
+    // Reference check:
+    if (!dmserver) return false;
+
+    // Assign boolean:
+    dmserver->sconn.ss6only = ipv6only;
+    return true;
+}
+
+/*
+    @brief Function to establish the certificate path of the server.
+    @note: This function must be called after initialization OR after server close.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param const char * certpath: Reference to the certificate path.
+
+    @retval false: If certificate path assignation failed.
+    @retval true: If certificate path assignation succeeded.
+*/
+bool dmserver_conf_certpath(dmserver_pt dmserver, const char * certpath){
+    // References & state check:
+    if (!dmserver) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+
+    // Certificate path copy:
+    strncpy(dmserver->sconn.sssl_certpath, certpath, DEFAULT_SCONN_CERTPATHLEN);
+    dmserver->sconn.sssl_certpath[DEFAULT_SCONN_CERTPATHLEN - 1] = '\0';
+
+    return true;
+}
+
+/*
+    @brief Function to establish the key path of the server.
+    @note: This function must be called after initialization OR after server close.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param const char * keypath: Reference to the key path.
+
+    @retval false: If key path assignation failed.
+    @retval true: If key path assignation succeeded.
+*/
+bool dmserver_conf_keypath(dmserver_pt dmserver, const char * keypath){
+    // References & state check:
+    if (!dmserver) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+
+    // Certificate path copy:
+    strncpy(dmserver->sconn.sssl_keypath, keypath, DEFAULT_SCONN_KEYPATHLEN);
+    dmserver->sconn.sssl_keypath[DEFAULT_SCONN_CERTPATHLEN - 1] = '\0';
+
+    return true;
+}
+
+// ======== Configuration - Callbacks:
+/*
+    @brief Function to set a callback function when a client connects to the server.
+    @note: This function must be called after initialization OR after server close.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param void (*on_client_connect)(void *): Reference to callback function.
+
+    @retval true: Callback assignation succeeded.
+    @retval false: Callback assignation failed.
+*/
+bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(void *)){
+    // References & state check:
+    if (!dmserver || !on_client_connect) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+
+    // Callback assignation:
+    dmserver->sworker.on_client_connect = on_client_connect;
+    return true;
+}
+
+/*
+    @brief Function to set a callback function when a client disconnects to the server.
+    @note: This function must be called after initialization OR after server close.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param void (*on_client_disconnect)(void *): Reference to callback function.
+
+    @retval true: Callback assignation succeeded.
+    @retval false: Callback assignation failed.
+*/
+bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_disconnect)(void *)){
+    // References & state check:
+    if (!dmserver || !on_client_disconnect) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+
+    // Callback assignation:
+    dmserver->sworker.on_client_disconnect = on_client_disconnect;
+    return true;
+}
+
+/*
+    @brief Function to set a callback function when a client timedout to the server.
+    @note: This function must be called after initialization OR after server close.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param void (*on_client_timeout)(void *): Reference to callback function.
+
+    @retval true: Callback assignation succeeded.
+    @retval false: Callback assignation failed.
+*/
+bool dmserver_setcb_onclienttimeout(dmserver_pt dmserver, void (*on_client_timeout)(void *)){
+    // References & state check:
+    if (!dmserver || !on_client_timeout) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+
+    // Callback assignation:
+    dmserver->sworker.on_client_timeout = on_client_timeout;
+    return true;
+}
+
+/*
+    @brief Function to set a callback function when received data from a client.
+    @note: This function must be called after initialization OR after server close.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param void (*on_client_rcv)(void *): Reference to callback function.
+
+    @retval true: Callback assignation succeeded.
+    @retval false: Callback assignation failed.
+*/
+bool dmserver_setcb_onclientrcv(dmserver_pt dmserver, void (*on_client_rcv)(void *)){
+    // References & state check:
+    if (!dmserver || !on_client_rcv) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+
+    // Callback assignation:
+    dmserver->sworker.on_client_rcv = on_client_rcv;
+    return true;
+}
+
+/*
+    @brief Function to set a callback function when sent data from a client.
+    @note: This function must be called after initialization OR after server close.
+
+    @param dmserver_pt dmserver: Reference to dmserver struct.
+    @param void (*on_client_snd)(void *): Reference to callback function.
+
+    @retval true: Callback assignation succeeded.
+    @retval false: Callback assignation failed.
+*/
+bool dmserver_setcb_onclientsnd(dmserver_pt dmserver, void (*on_client_snd)(void *)){
+    // References & state check:
+    if (!dmserver || !on_client_snd) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+
+    // Callback assignation:
+    dmserver->sworker.on_client_snd = on_client_snd;
+    return true;
+}
 
 
 
@@ -604,10 +859,9 @@ static void * _dmserver_worker_main(void * args){
     if (epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_ADD, dmserver->sconn.sfd, &(struct epoll_event){.events=EPOLLIN, .data.fd=dmserver->sconn.sfd}) < 0) return NULL;
     struct epoll_event ev;
     
-
     while (dmserver->sstate == DMSERVER_STATE_RUNNING){
         // Epoll wait for connection (or forced wakeup via wthctl):
-        int nfds = epoll_wait(dmserver->sworker.wmainepfd, &ev, 1, 1000);
+        int nfds = epoll_wait(dmserver->sworker.wmainepfd, &ev, 1, 2000);
         if (nfds < 0  && (errno == EINTR)) {continue;}
 
         // Accept connection:
@@ -616,6 +870,7 @@ static void * _dmserver_worker_main(void * args){
         socklen_t temp_caddrlen = sizeof(temp_caddr);
         temp_cfd = accept4(dmserver->sconn.sfd, (struct sockaddr *)&temp_caddr, &temp_caddrlen, SOCK_NONBLOCK);
         if (temp_cfd < 0){continue;}
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
 
         // Create ssl session:
         SSL * temp_cssl;
@@ -624,7 +879,8 @@ static void * _dmserver_worker_main(void * args){
         SSL_set_fd(temp_cssl, temp_cfd);
 
         if(!_dmserver_helper_sslhandshake(temp_cssl, &temp_cfd)) continue;
-        
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TLS ok.", temp_cfd);
+
         // Distribute client to the less populated subordinate thread and the next free slot:
         size_t temp_thindex = 0;
         for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
@@ -634,11 +890,18 @@ static void * _dmserver_worker_main(void * args){
         for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
             if (dmserver->sworker.wcclis[temp_thindex][i].cstate == DMSERVER_CLIENT_STANDBY) {temp_cindex = i; break;}
         }
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d assigned to point (%lu, %lu).", temp_cfd, temp_thindex, temp_cindex);
 
         // Set the connection data into the selected client slot & add fd to the subthread epoll:
         if(!_dmserver_cconn_set(&dmserver->sworker.wcclis[temp_thindex][temp_cindex], temp_cfd, &temp_caddr, temp_cssl)) {SSL_shutdown(temp_cssl); SSL_free(temp_cssl); close(temp_cfd); continue;}
         if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, temp_cfd, &(struct epoll_event){.events=EPOLLIN, .data.ptr=&dmserver->sworker.wcclis[temp_thindex][temp_cindex]}) < 0) {_dmserver_cconn_reset(&dmserver->sworker.wcclis[temp_thindex][temp_cindex]); SSL_shutdown(temp_cssl); SSL_free(temp_cssl); close(temp_cfd); continue;}
         dmserver->sworker.wccount[temp_thindex]++;
+
+        char cip_str[INET6_ADDRSTRLEN];
+        const void * addr = (dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr_family == AF_INET) ? (void*)&dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr.c4.sin_addr : (void*)&dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr.c6.sin6_addr;
+        inet_ntop(dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr_family, addr, cip_str, sizeof(cip_str));
+        int cport_num = (dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr_family == AF_INET) ? ntohs(dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr.c4.sin_port) : ntohs(dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr.c6.sin6_port);
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", dmserver->sworker.wcclis[temp_thindex][temp_cindex].cfd, cip_str, cport_num);
     }
 
     // Delete the server socket file descriptor from main thread epoll:
@@ -667,16 +930,15 @@ static void * _dmserver_worker_sub(void * args){
 
     while (dmserver->sstate == DMSERVER_STATE_RUNNING){
         // Epoll wait for events (or forced wakeup via wthctl):
-        int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, DEFAULT_WORKER_CLISPERSTH, 1000);
-        if ((nfds <= 0)  || (errno == EINTR)) {continue;}
+        int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, DEFAULT_WORKER_CLISPERSTH, 6000);
+        if (nfds == 0) {for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){_dmserver_helper_cctimeout(dmserver, &dmserver->sworker.wcclis[dmthindex][i], dmthindex); continue;}}
+        if ((nfds < 0)  || (errno == EINTR)) {continue;}
         
+
         for (size_t i = 0; i < nfds; i++){
             // Obtain the pointer and check the state of the client that generated the event:
             struct dmserver_cliconn * dmclient = evs[i].data.ptr;
             if (!dmclient || (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED)) continue;
-
-            // Check timeout & update:
-            if(!_dmserver_helper_cctimeout(dmserver, dmclient, dmthindex)) continue;
 
             // Handle read:
             if(!_dmserver_helper_ccread(dmserver, dmclient, dmthindex, evs, i)) continue;
@@ -759,12 +1021,14 @@ static bool _dmserver_helper_sslhandshake(SSL * temp_cssl, int * temp_cfd){
     @retval true: Client not timedout.
 */
 static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex){
-    // Refernces check:
+    // Refernces & state check:
     if (!dmserver || !dmclient) return false;
+    if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) return false;
 
     // Timeout check and process:
     if(!_dmserver_cconn_checktimeout(dmclient, DEFAULT_WORKER_CLITIMEOUT)){
         if (dmserver->sworker.on_client_timeout) dmserver->sworker.on_client_timeout(dmclient);
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d timedout, connection closed.\n", dmclient->cfd);
         _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
         return false;
     }
@@ -799,20 +1063,24 @@ static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_clicon
         if (rb > 0){
             // Data reception case:
             dmclient->crlen += rb;
-
-            // User specific data processing of received data:
-            if (dmserver->sworker.on_client_rcv) dmserver->sworker.on_client_rcv(dmclient);
+            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Read of %d bytes from client %d.\n", rb, dmclient->cfd);
 
             // Timeout ctl update:
             dmclient->clastt =  time(NULL);
+            
+            // User specific data processing of received data:
+            if (dmserver->sworker.on_client_rcv) dmserver->sworker.on_client_rcv(dmclient);
+            
         } else if ((rb == 0) || (rb_err == SSL_ERROR_ZERO_RETURN)){
-            // Client disconnect case: 
+            // Client disconnect case:
+            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d disconnected.\n", dmclient->cfd); 
             _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
             pthread_mutex_unlock(&dmclient->crlock);
             return false;
 
         } else if ((rb_err != SSL_ERROR_WANT_READ) && (rb_err != SSL_ERROR_WANT_WRITE)){
             // Comunication error case:
+            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d com. failed, forced disconnected.\n", dmclient->cfd); 
             _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
             pthread_mutex_unlock(&dmclient->crlock);
             return false;
@@ -849,14 +1117,12 @@ static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_clico
         int wb = SSL_write(dmclient->cssl, dmclient->cwbuffer + dmclient->cwoff, dmclient->cwlen - dmclient->cwoff);
 
         if (wb > 0){
-            // Data sended case:
-            dmclient->cwoff += wb;
+            // Data sent case:
+            dmclient->cwoff += wb;;
 
-            // Timeout ctl update:
-            dmclient->clastt =  time(NULL);
-
-            // All data sended case:
+            // All data sent case:
             if (dmclient->cwoff != dmclient->cwlen) {pthread_mutex_unlock(&dmclient->cwlock); return true;}
+            memset(dmclient->cwbuffer, 0, DEFAULT_CCONN_WBUFFERLEN);
             dmclient->cwoff = 0;
             dmclient->cwlen = 0;
 

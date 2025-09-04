@@ -1,0 +1,122 @@
+2025-09-04 18:54:27.260519130 | [INFO]: -------- DMServer initialization completed at (0x7067f8e9b010).
+
+2025-09-04 18:54:27.262687668 | [DEBUG]: dmserver_open() - server connection data initialized.
+2025-09-04 18:54:27.262702284 | [DEBUG]: dmserver_open() - server listening, with a backlog of size 4096.
+2025-09-04 18:54:27.262707119 | [INFO]: DMServer open with address :::2020.
+
+2025-09-04 18:54:27.262743444 | [DEBUG]: dmserver_run() - Launched subordinated thread -127297856.
+2025-09-04 18:54:27.262773017 | [DEBUG]: dmserver_run() - Launched subordinated thread -135690560.
+2025-09-04 18:54:27.262797936 | [DEBUG]: dmserver_run() - Launched subordinated thread -144083264.
+2025-09-04 18:54:27.262816125 | [DEBUG]: dmserver_run() - Launched subordinated thread -152475968.
+2025-09-04 18:54:27.262834286 | [DEBUG]: dmserver_run() - Launched subordinated thread -160868672.
+2025-09-04 18:54:27.262851499 | [DEBUG]: dmserver_run() - Launched subordinated thread -169261376.
+2025-09-04 18:54:27.262870131 | [DEBUG]: dmserver_run() - Launched subordinated thread -177654080.
+2025-09-04 18:54:27.262889042 | [DEBUG]: dmserver_run() - Launched subordinated thread -186046784.
+2025-09-04 18:54:27.262905266 | [DEBUG]: dmserver_run() - Launched main thread -194439488.
+2025-09-04 18:54:27.262908017 | [INFO]: DMServer running.
+
+2025-09-04 18:54:32.322185725 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TCP ok.
+2025-09-04 18:54:32.475899055 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TLS ok.
+2025-09-04 18:54:32.475933310 | [DEBUG]: _dmserver_worker_main() - Client 14 assigned to point (0, 0).
+2025-09-04 18:54:32.475955321 | [INFO]: Client 14 with address :::53562 connected to server.
+
+2025-09-04 18:54:34.955170859 | [DEBUG]: _dmserver_worker_main() - Client 15 connection stage TCP ok.
+2025-09-04 18:54:35.107613687 | [DEBUG]: _dmserver_worker_main() - Client 15 connection stage TLS ok.
+2025-09-04 18:54:35.107675589 | [DEBUG]: _dmserver_worker_main() - Client 15 assigned to point (1, 0).
+2025-09-04 18:54:35.107694036 | [INFO]: Client 15 with address :::53578 connected to server.
+
+2025-09-04 18:54:38.894348426 | [DEBUG]: Read of 7 bytes from client 14.
+
+2025-09-04 18:54:38.894398838 | [INFO]: Comenzando broadcast...
+2025-09-04 18:54:38.894412925 | [DEBUG]: Broadcast enviado al cliente 14.
+2025-09-04 18:54:38.894430009 | [DEBUG]: Broadcast enviado al cliente 15.
+2025-09-04 18:54:38.894472493 | [INFO]: Broadcast finalizado.
+
+2025-09-04 18:54:43.603070797 | [DEBUG]: Read of 9 bytes from client 15.
+
+2025-09-04 18:54:43.603109443 | [INFO]: Comenzando broadcast...
+2025-09-04 18:54:43.603119751 | [DEBUG]: Broadcast enviado al cliente 14.
+2025-09-04 18:54:43.603135732 | [DEBUG]: Broadcast enviado al cliente 15.
+2025-09-04 18:54:43.603175539 | [INFO]: Broadcast finalizado.
+
+2025-09-04 18:54:49.470880202 | [DEBUG]: Read of 13 bytes from client 14.
+
+2025-09-04 18:54:49.470926816 | [INFO]: Comenzando broadcast...
+2025-09-04 18:54:49.470937256 | [DEBUG]: Broadcast enviado al cliente 14.
+2025-09-04 18:54:49.470954486 | [DEBUG]: Broadcast enviado al cliente 15.
+2025-09-04 18:54:49.470997602 | [INFO]: Broadcast finalizado.
+
+2025-09-04 18:54:52.556295439 | [DEBUG]: Read of 5 bytes from client 15.
+
+2025-09-04 18:54:52.556333385 | [INFO]: Comenzando broadcast...
+2025-09-04 18:54:52.556344769 | [DEBUG]: Broadcast enviado al cliente 14.
+2025-09-04 18:54:52.556358408 | [DEBUG]: Broadcast enviado al cliente 15.
+2025-09-04 18:54:52.556395264 | [INFO]: Broadcast finalizado.
+
+2025-09-04 18:54:58.309835146 | [INFO]: Client 14 disconnected.
+
+2025-09-04 18:55:02.836703395 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TCP ok.
+2025-09-04 18:55:02.989053916 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TLS ok.
+2025-09-04 18:55:02.989106177 | [DEBUG]: _dmserver_worker_main() - Client 14 assigned to point (0, 0).
+2025-09-04 18:55:02.989126242 | [INFO]: Client 14 with address :::52432 connected to server.
+
+2025-09-04 18:55:11.358512477 | [DEBUG]: _dmserver_worker_main() - Client 16 connection stage TCP ok.
+2025-09-04 18:55:11.510974160 | [DEBUG]: _dmserver_worker_main() - Client 16 connection stage TLS ok.
+2025-09-04 18:55:11.511009346 | [DEBUG]: _dmserver_worker_main() - Client 16 assigned to point (2, 0).
+2025-09-04 18:55:11.511023861 | [INFO]: Client 16 with address :::52444 connected to server.
+
+2025-09-04 18:55:13.669720573 | [INFO]: Client 14 disconnected.
+
+2025-09-04 18:56:58.650598320 | [INFO]: Client 15 timedout, connection closed.
+
+2025-09-04 18:57:15.408303432 | [INFO]: Client 16 timedout, connection closed.
+
+2025-09-04 18:57:19.618914971 | [DEBUG]: dmserver_stop() - Stopped main thread -194439488.
+2025-09-04 18:57:19.769949751 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -127297856.
+2025-09-04 18:57:22.675199751 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -135690560.
+2025-09-04 18:57:22.675239720 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -144083264.
+2025-09-04 18:57:22.675282982 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -152475968.
+2025-09-04 18:57:22.675306295 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -160868672.
+2025-09-04 18:57:22.675376543 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -169261376.
+2025-09-04 18:57:22.675413722 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -177654080.
+2025-09-04 18:57:22.675439280 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -186046784.
+2025-09-04 18:57:22.675455318 | [INFO]: DMServer stopped.
+
+2025-09-04 18:57:22.675559898 | [DEBUG]: dmserver_close() - server connection data deinitialized.
+2025-09-04 18:57:22.675567954 | [INFO]: DMServer closed.
+
+2025-09-04 18:57:22.675668027 | [INFO]: -------- DMServer at (0x7067f8e9b010) deinitialized.
+
+2025-09-04 18:57:41.915613528 | [INFO]: -------- DMServer initialization completed at (0x5106040).
+
+2025-09-04 18:57:43.075883558 | [DEBUG]: dmserver_open() - server connection data initialized.
+2025-09-04 18:57:43.076405535 | [DEBUG]: dmserver_open() - server listening, with a backlog of size 4096.
+2025-09-04 18:57:43.077492661 | [INFO]: DMServer open with address :::2020.
+
+2025-09-04 18:57:43.094703294 | [DEBUG]: dmserver_run() - Launched subordinated thread 110130880.
+2025-09-04 18:57:43.111205559 | [DEBUG]: dmserver_run() - Launched subordinated thread 118523584.
+2025-09-04 18:57:43.127758865 | [DEBUG]: dmserver_run() - Launched subordinated thread 126916288.
+2025-09-04 18:57:43.144153604 | [DEBUG]: dmserver_run() - Launched subordinated thread 135308992.
+2025-09-04 18:57:43.160454202 | [DEBUG]: dmserver_run() - Launched subordinated thread 143701696.
+2025-09-04 18:57:43.177057510 | [DEBUG]: dmserver_run() - Launched subordinated thread 152094400.
+2025-09-04 18:57:43.193451996 | [DEBUG]: dmserver_run() - Launched subordinated thread 160487104.
+2025-09-04 18:57:43.209990875 | [DEBUG]: dmserver_run() - Launched subordinated thread 168879808.
+2025-09-04 18:57:43.226617846 | [DEBUG]: dmserver_run() - Launched main thread 177272512.
+2025-09-04 18:57:43.226681416 | [INFO]: DMServer running.
+
+2025-09-04 18:57:47.249525330 | [DEBUG]: dmserver_stop() - Stopped main thread 177272512.
+2025-09-04 18:57:49.241186574 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 110130880.
+2025-09-04 18:57:49.241528950 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 118523584.
+2025-09-04 18:57:49.242129677 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 126916288.
+2025-09-04 18:57:49.246091354 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 135308992.
+2025-09-04 18:57:49.247927700 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 143701696.
+2025-09-04 18:57:49.249550642 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 152094400.
+2025-09-04 18:57:49.251056846 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 160487104.
+2025-09-04 18:57:49.252307076 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 168879808.
+2025-09-04 18:57:49.252558451 | [INFO]: DMServer stopped.
+
+2025-09-04 18:57:49.266313352 | [DEBUG]: dmserver_close() - server connection data deinitialized.
+2025-09-04 18:57:49.266414927 | [INFO]: DMServer closed.
+
+2025-09-04 18:57:49.268535416 | [INFO]: -------- DMServer at (0x5106040) deinitialized.
+

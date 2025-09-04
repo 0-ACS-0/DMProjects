@@ -66,7 +66,7 @@
 #include "dmlogger.h"
 
 /* ---- Defines & macros ------------------------------------------ */
-#define DEFAULT_SCONN_SPORT 8080
+#define DEFAULT_SCONN_SPORT 1024
 #define DEFAULT_SCONN_SFAMILY AF_INET
 #define DEFAULT_SCONN_CERTPATHLEN 128
 #define DEFAULT_SCONN_CERTPATHVAL "./certs/server.crt"
@@ -78,7 +78,7 @@
 
 #define DEFAULT_WORKER_SUBTHREADS 8
 #define DEFAULT_WORKER_CLISPERSTH 200
-#define DEFAULT_WORKER_CLITIMEOUT 60
+#define DEFAULT_WORKER_CLITIMEOUT 120
 
 /* ---- Enumerations ---------------------------------------------- */
 // Clients state:
@@ -198,7 +198,6 @@ bool dmserver_conf_ipv6only(dmserver_pt dmserver, bool ipv6only);
 bool dmserver_conf_certpath(dmserver_pt dmserver, const char * certpath);
 bool dmserver_conf_keypath(dmserver_pt dmserver, const char * keypath);
 
-
 // Configuration - Callbacks:
 bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(void *));
 bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_disconnect)(void *));
@@ -213,5 +212,7 @@ bool dmserver_stop(dmserver_pt dmserver);
 bool dmserver_close(dmserver_pt dmserver);
 
 // Broadcast / Unicast:
+bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata);
+bool dmserver_unicast(dmserver_pt dmserver, int cli_fd);
 
 #endif

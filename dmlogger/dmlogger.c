@@ -15,11 +15,11 @@ static bool __dmlogger_rotate_file_bysize(dmlogger_pt dmlogger, size_t log_fullm
 // ======== Initialization / Run / Deinitialization:
 /*
     @brief Function to initialize the dmlogger.
-    Handle memory allocation and sets all configurable values to default. Starts directly
-    the consumer thread if nothing fails.
+    Handle memory allocation and sets all configurable values to default.
 
     @param dmlogger_pt * dmlogger: Double reference to dmlogger.
     @param dmlogger_conf_pt dmlogger_conf: Reference to the configuration of dmlogger.
+    @note: (Check for null value in pointer reference in case of errors.)
 */
 void dmlogger_init(dmlogger_pt * dmlogger){
     // Pointer check:
@@ -178,6 +178,7 @@ bool dmlogger_conf_output_file(dmlogger_pt dmlogger, const char * file_path, con
         if (dmlogger->output.file.size == -1L) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL; pthread_mutex_unlock(&dmlogger->output.mutex); return false;}
         if (dmlogger->output.file.size == 0){dmlogger->output.file.size = 0; break;}
         if (dmlogger->output.file.size >= dmlogger->output.file.max_size) {fclose(dmlogger->output.file.fd); dmlogger->output.file.fd = NULL; dmlogger->output.file.index++;}
+        break;
     }
     dmlogger->output.osel = DMLOGGER_OUTPUT_FILE;
 
@@ -519,9 +520,8 @@ static void * _dmlogger_logger_th(void * args){
         while ((dmlogger->queue.head == dmlogger->queue.tail) && (dmlogger->state == DMLOGGER_STATE_RUNNING)){
             pthread_cond_wait(&dmlogger->queue.cons_cond, &dmlogger->queue.cons_mutex);
         }
-
         if ((dmlogger->state != DMLOGGER_STATE_RUNNING) && (dmlogger->queue.head == dmlogger->queue.tail)) {pthread_mutex_unlock(&dmlogger->queue.cons_mutex); break;}
-
+        
         // Queue entry management:
         entry = dmlogger->queue.equeue[dmlogger->queue.head++];
         dmlogger->queue.head %= dmlogger->queue.capacity;
@@ -539,7 +539,6 @@ static void * _dmlogger_logger_th(void * args){
 
         // Output file write:
         __dmlogger_logger_write(dmlogger, &entry);
-
     }
 
     return NULL;
@@ -562,10 +561,9 @@ static bool __dmlogger_logger_write(dmlogger_pt dmlogger, struct dmlogger_entry 
     snprintf(fullmsg, sizeof(fullmsg), "%s | [%s]: %s", entry->timestamp, entry->level, entry->message);
 
     // Output selection:
+    pthread_mutex_lock(&dmlogger->output.mutex);
     switch (dmlogger->output.osel) {
         case DMLOGGER_OUTPUT_FILE:
-            pthread_mutex_lock(&dmlogger->output.mutex);
-
             // File check:
             if (!dmlogger->output.file.fd) {pthread_mutex_unlock(&dmlogger->output.mutex); return false;}
 
@@ -587,14 +585,12 @@ static bool __dmlogger_logger_write(dmlogger_pt dmlogger, struct dmlogger_entry 
 
         case DMLOGGER_OUTPUT_STDOUT:
         case DMLOGGER_OUTPUT_STDERR:
-            pthread_mutex_lock(&dmlogger->output.mutex);
             fprintf(dmlogger->output.stdo.stream, "%s\n", fullmsg);
             fflush(dmlogger->output.stdo.stream);
             pthread_mutex_unlock(&dmlogger->output.mutex);
             break;
 
         case DMLOGGER_OUTPUT_CUSTOM:
-            pthread_mutex_lock(&dmlogger->output.mutex);
             dmlogger->output.custom.cwrite_fn(fullmsg, dmlogger->output.custom.cdata);
             pthread_mutex_unlock(&dmlogger->output.mutex);
             break;
