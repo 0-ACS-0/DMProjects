@@ -53,6 +53,7 @@
 
 // OpenSSL (TLS):
 #include <openssl/ssl.h>
+#include <openssl/crypto.h>
 #include <openssl/err.h>
 
 // Signals:
@@ -68,7 +69,9 @@
 #define DEFAULT_SCONN_SPORT 8080
 #define DEFAULT_SCONN_SFAMILY AF_INET
 #define DEFAULT_SCONN_CERTPATHLEN 128
+#define DEFAULT_SCONN_CERTPATHVAL "./certs/server.crt"
 #define DEFAULT_SCONN_KEYPATHLEN 128
+#define DEFAULT_SCONN_KEYPATHVAL "./certs/server.key"
 
 #define DEFAULT_CCONN_RBUFFERLEN 1024
 #define DEFAULT_CCONN_WBUFFERLEN 1024
@@ -155,7 +158,6 @@ struct dmserver_worker{
     int wmainepfd;
     pthread_t wsubth[DEFAULT_WORKER_SUBTHREADS];
     int wsubepfd[DEFAULT_WORKER_SUBTHREADS];
-    int wthctl;
 
     // Clients placeholder for each sub-thread:
     struct dmserver_cliconn wcclis[DEFAULT_WORKER_SUBTHREADS][DEFAULT_WORKER_CLISPERSTH];
@@ -190,10 +192,12 @@ void dmserver_init(dmserver_pt * dmserver);
 void dmserver_deinit(dmserver_pt * dmserver);
 
 // Configuration - General:
-bool dmserver_conf_certpath(dmserver_pt dmserver, const char * certpath);
-bool dmserver_conf_keypath(dmserver_pt dmserver, const char * keypath);
+bool dmserver_conf_port(dmserver_pt dmserver, int port);
 bool dmserver_conf_safamily(dmserver_pt dmserver, sa_family_t safamily);
 bool dmserver_conf_ipv6only(dmserver_pt dmserver, bool ipv6only);
+bool dmserver_conf_certpath(dmserver_pt dmserver, const char * certpath);
+bool dmserver_conf_keypath(dmserver_pt dmserver, const char * keypath);
+
 
 // Configuration - Callbacks:
 bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(void *));

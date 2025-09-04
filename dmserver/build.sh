@@ -1,6 +1,5 @@
 #!/bin/bash
-
-
+#gcc -g -Wall -O0 -lssl -lcrypto ./dmlogger.so dmserver.c dmserver_test.c -o test.elf
 # Variables de entorno             #
 # -------------------------------- #
 CC=gcc
