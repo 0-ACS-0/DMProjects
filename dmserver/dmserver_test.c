@@ -28,6 +28,7 @@ int main(int argc, char ** argv){
     if (!dmserver_conf_port(serv, 2020)) exit(1);
     if (!dmserver_conf_safamily(serv, AF_INET6)) exit(1);
     if (!dmserver_conf_ipv6only(serv, false)) exit(1);
+    if (!dmserver_conf_tlsenable(serv, true)) exit(1);
     if (!dmserver_conf_certpath(serv, "./certs/server.crt")) exit(1);
     if (!dmserver_conf_keypath(serv, "./certs/server.key")) exit(1);
 

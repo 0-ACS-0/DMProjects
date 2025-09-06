@@ -3,9 +3,16 @@
       DMSERVER
     ============
 
-    Dmserver is a simple yet well-balanced server utility designed for Unix systems (same as dmlogger, yup).
+    Dmserver is a simple (or not so simple) yet well-balanced server utility designed for Unix systems (same as dmlogger, yup).
     
-    ... TODO ...
+    It is a TCP/IP server, which uses TLSv1.3 by default and that handles clients in a efficiente/balanced way. 
+    With a simple architecture where a thread handle clients connections, and another bunch handle all thoses clients
+    multiplexed by UNIX defined functionality.
+
+    It is non-blocking, which means all the server processes are running on different threads, 
+    implementing user-defined callbacks for customized application layer. 
+    Also providing simple configuration options to select how
+    the server side will behave in a low level basis.
 
     --------
     Author: Antonio Carretero Sahuquillo
@@ -18,7 +25,6 @@
 /* ---- Header guard ---------------------------------------------- */
 #ifndef _DMSERVER_HEADER
 #define _DMSERVER_HEADER
-#include <bits/sockaddr.h>
 #ifndef _GNU_SOURCE 
 #define _GNU_SOURCE
 #endif
@@ -49,7 +55,6 @@
 
 // Events I/O:
 #include <sys/epoll.h>
-#include <sys/eventfd.h>
 
 // OpenSSL (TLS):
 #include <openssl/ssl.h>
@@ -113,6 +118,7 @@ struct dmserver_servconn{
     }saddr;
 
     // Secure connection data of the server (including certificate and key paths):
+    bool sssl_enable;
     const SSL_METHOD * sssl_method;
     SSL_CTX * sssl_ctx;
     char sssl_certpath[DEFAULT_SCONN_CERTPATHLEN];
@@ -172,7 +178,10 @@ struct dmserver_worker{
     struct dmserver_cliconn wcclis[DEFAULT_WORKER_SUBTHREADS][DEFAULT_WORKER_CLISPERSTH];
     size_t wccount[DEFAULT_WORKER_SUBTHREADS];
     time_t wctimeout;
+};
 
+// DMServer callbacks reference data structure:
+struct dmserver_callback{
     // Callbacks available:
     void (*on_client_connect)(void * args);
     void (*on_client_disconnect)(void * args);
@@ -185,6 +194,7 @@ struct dmserver_worker{
 struct dmserver{
     struct dmserver_servconn sconn;
     struct dmserver_worker sworker;
+    struct dmserver_callback scallback;
     dmlogger_pt slogger;
 
     enum dmserver_state sstate;
@@ -208,6 +218,7 @@ void dmserver_deinit(dmserver_pt * dmserver);
 bool dmserver_conf_port(dmserver_pt dmserver, int port);
 bool dmserver_conf_safamily(dmserver_pt dmserver, sa_family_t safamily);
 bool dmserver_conf_ipv6only(dmserver_pt dmserver, bool ipv6only);
+bool dmserver_conf_tlsenable(dmserver_pt dmserver, bool tlsv13en);
 bool dmserver_conf_certpath(dmserver_pt dmserver, const char * certpath);
 bool dmserver_conf_keypath(dmserver_pt dmserver, const char * keypath);
 

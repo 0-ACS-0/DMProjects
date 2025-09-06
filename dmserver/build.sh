@@ -1,17 +1,17 @@
 #!/bin/bash
-#gcc -g -Wall -O0 -lssl -lcrypto ./dmlogger.so dmserver.c dmserver_test.c -o test.elf
+
 # Variables de entorno             #
 # -------------------------------- #
 CC=gcc
-CFLAGS_TEST="-g -Wall -O2 -lssl -lcrypto -lpthread"
-CFLAGS_LIB="-std=c99 -D_POSIX_C_SOURCE=200809L -shared -fPIC -Wall -Werror -O2 -lpthread -lssl -lcrypto"
+CFLAGS_TEST="-I./libs/ -g -Wall -O2 -lssl -lcrypto -lpthread"
+CFLAGS_LIB="-I./libs/ -std=c99 -D_POSIX_C_SOURCE=200809L -shared -fPIC -Wall -Werror -O2 -lpthread -lssl -lcrypto"
 
-LIB_SRC=dmserver.c
+LIB_SRC="./libs/libdmlogger.so dmserver.c"
 INC=dmserver.h
-TEST_SRC="dmserver.c dmserver_test.c"
+TEST_SRC="./libs/libdmlogger.so dmserver.c dmserver_test.c"
 
 TEST_PROG=test.elf
-LIB_PROG=dmserver.so
+LIB_PROG=libdmserver.so
 # -------------------------------- #
 
 
@@ -25,19 +25,20 @@ if [ "$1" == "test" ]; then
         echo "[BUILD-TEST]: Executing test program..."
         echo
         ./$TEST_PROG
+        TEST_EXIT=$?
         echo
-        echo "[BUILD-TEST]: Finalized test program!"
+        echo "[BUILD-TEST]: Finalized test program with exit code: $TEST_EXIT"
     else
         echo "[BUILD-TEST ERR]: Compilatioin error, execution aborted."
     fi
     echo
 
-elif [ "$1" == "lib" ]; then
+elif [ "$1" == "libs" ]; then
     echo
     echo "[BUILD-LIB]: Compiling library..."
     if $CC $CFLAGS_LIB $LIB_SRC -o $LIB_PROG; then
-        mv $LIB_PROG ./lib
-        cp $INC ./lib
+        mv $LIB_PROG ./libs
+        cp $INC ./libs
         echo "[BUILD-LIB]: Library compiled!."
     else
         echo "[BUILD-LIB ERR]: Compilation error, library not generated."
@@ -47,7 +48,7 @@ elif [ "$1" == "lib" ]; then
 elif [ "$1" == "clean" ]; then
     echo
     echo "[BUILD-CLEAN]: Cleaning workspace..."
-    rm -f ./$TEST_PROG ./lib/* ./logs/*
+    rm -f ./$TEST_PROG ./libs/$LIB_PROG ./libs/$INC ./logs/*
     echo "[BUILD-CLEAN]: Workspace completly clean!"
     echo
 
