@@ -12,7 +12,7 @@ INC=dmlogger.h
 TEST_SRC="dmlogger.c dmlogger_test.c"
 
 TEST_PROG=test.elf
-LIB_PROG=dmlogger.so
+LIB_PROG=libdmlogger.so
 # -------------------------------- #
 
 
