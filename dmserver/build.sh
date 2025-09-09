@@ -33,7 +33,7 @@ if [ "$1" == "test" ]; then
     fi
     echo
 
-elif [ "$1" == "libs" ]; then
+elif [ "$1" == "lib" ]; then
     echo
     echo "[BUILD-LIB]: Compiling library..."
     if $CC $CFLAGS_LIB $LIB_SRC -o $LIB_PROG; then

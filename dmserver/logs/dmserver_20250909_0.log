@@ -1,0 +1,693 @@
+2025-09-09 13:45:07.382242113 | [INFO]: -------- DMServer initialization completed at (0x756a78497010).
+
+2025-09-09 13:45:07.382366559 | [INFO]: DMServer opening...
+2025-09-09 13:45:07.382383799 | [DEBUG]: dmserver_open() - server connection data initialized.
+2025-09-09 13:45:07.384054415 | [DEBUG]: dmserver_open() - server ssl data initialized.
+2025-09-09 13:45:07.384064146 | [DEBUG]: dmserver_open() - server listening, with a backlog of size 4096.
+2025-09-09 13:45:07.384067840 | [INFO]: DMServer open with address 0.0.0.0:2020.
+
+2025-09-09 13:45:07.384069052 | [INFO]: DMServer starting run...
+2025-09-09 13:45:07.384094700 | [DEBUG]: dmserver_run() - Launched subordinated thread 2009683648.
+2025-09-09 13:45:07.384109291 | [DEBUG]: dmserver_run() - Launched subordinated thread 2001290944.
+2025-09-09 13:45:07.384140935 | [DEBUG]: dmserver_run() - Launched subordinated thread 1992898240.
+2025-09-09 13:45:07.384181655 | [DEBUG]: dmserver_run() - Launched subordinated thread 1879045824.
+2025-09-09 13:45:07.384202648 | [DEBUG]: dmserver_run() - Launched subordinated thread 1967720128.
+2025-09-09 13:45:07.384234386 | [DEBUG]: dmserver_run() - Launched subordinated thread 1870653120.
+2025-09-09 13:45:07.384259299 | [DEBUG]: dmserver_run() - Launched subordinated thread 1845475008.
+2025-09-09 13:45:07.384281258 | [DEBUG]: dmserver_run() - Launched subordinated thread 1828689600.
+2025-09-09 13:45:07.384304013 | [DEBUG]: dmserver_run() - Launched main thread 1459607232.
+2025-09-09 13:45:07.384307275 | [INFO]: DMServer running.
+
+2025-09-09 13:45:12.336850520 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TCP ok.
+2025-09-09 13:45:12.336926260 | [DEBUG]: _dmserver_worker_main() - Client 14 assigned to point (0, 0).
+2025-09-09 13:45:12.338954133 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TLS ok.
+2025-09-09 13:45:12.338969024 | [INFO]: Client 14 with address 127.0.0.1:52708 connected to server.
+
+2025-09-09 13:45:12.985222819 | [DEBUG]: _dmserver_worker_main() - Client 15 connection stage TCP ok.
+2025-09-09 13:45:12.985238029 | [DEBUG]: _dmserver_worker_main() - Client 15 assigned to point (1, 0).
+2025-09-09 13:45:12.987333106 | [DEBUG]: _dmserver_worker_main() - Client 15 connection stage TLS ok.
+2025-09-09 13:45:12.987353496 | [INFO]: Client 15 with address 127.0.0.1:52714 connected to server.
+
+2025-09-09 13:45:13.336703800 | [DEBUG]: _dmserver_worker_main() - Client 16 connection stage TCP ok.
+2025-09-09 13:45:13.336731695 | [DEBUG]: _dmserver_worker_main() - Client 16 assigned to point (2, 0).
+2025-09-09 13:45:13.338536217 | [DEBUG]: _dmserver_worker_main() - Client 16 connection stage TLS ok.
+2025-09-09 13:45:13.338554783 | [INFO]: Client 16 with address 127.0.0.1:52726 connected to server.
+
+2025-09-09 13:45:13.636978729 | [DEBUG]: _dmserver_worker_main() - Client 17 connection stage TCP ok.
+2025-09-09 13:45:13.637017798 | [DEBUG]: _dmserver_worker_main() - Client 17 assigned to point (3, 0).
+2025-09-09 13:45:13.638902857 | [DEBUG]: _dmserver_worker_main() - Client 17 connection stage TLS ok.
+2025-09-09 13:45:13.638921978 | [INFO]: Client 17 with address 127.0.0.1:52740 connected to server.
+
+2025-09-09 13:45:13.904942888 | [DEBUG]: _dmserver_worker_main() - Client 18 connection stage TCP ok.
+2025-09-09 13:45:13.904960581 | [DEBUG]: _dmserver_worker_main() - Client 18 assigned to point (4, 0).
+2025-09-09 13:45:13.906970278 | [DEBUG]: _dmserver_worker_main() - Client 18 connection stage TLS ok.
+2025-09-09 13:45:13.906986909 | [INFO]: Client 18 with address 127.0.0.1:52742 connected to server.
+
+2025-09-09 13:45:14.197749159 | [DEBUG]: _dmserver_worker_main() - Client 19 connection stage TCP ok.
+2025-09-09 13:45:14.197767343 | [DEBUG]: _dmserver_worker_main() - Client 19 assigned to point (5, 0).
+2025-09-09 13:45:14.199491607 | [DEBUG]: _dmserver_worker_main() - Client 19 connection stage TLS ok.
+2025-09-09 13:45:14.199505132 | [INFO]: Client 19 with address 127.0.0.1:52748 connected to server.
+
+2025-09-09 13:45:14.486871980 | [DEBUG]: _dmserver_worker_main() - Client 20 connection stage TCP ok.
+2025-09-09 13:45:14.486893903 | [DEBUG]: _dmserver_worker_main() - Client 20 assigned to point (6, 0).
+2025-09-09 13:45:14.488509002 | [DEBUG]: _dmserver_worker_main() - Client 20 connection stage TLS ok.
+2025-09-09 13:45:14.488523581 | [INFO]: Client 20 with address 127.0.0.1:52764 connected to server.
+
+2025-09-09 13:45:14.774919988 | [DEBUG]: _dmserver_worker_main() - Client 21 connection stage TCP ok.
+2025-09-09 13:45:14.774943627 | [DEBUG]: _dmserver_worker_main() - Client 21 assigned to point (7, 0).
+2025-09-09 13:45:14.776679056 | [DEBUG]: _dmserver_worker_main() - Client 21 connection stage TLS ok.
+2025-09-09 13:45:14.776691457 | [INFO]: Client 21 with address 127.0.0.1:52780 connected to server.
+
+2025-09-09 13:45:15.023321459 | [DEBUG]: _dmserver_worker_main() - Client 22 connection stage TCP ok.
+2025-09-09 13:45:15.023340444 | [DEBUG]: _dmserver_worker_main() - Client 22 assigned to point (0, 1).
+2025-09-09 13:45:15.024837919 | [DEBUG]: _dmserver_worker_main() - Client 22 connection stage TLS ok.
+2025-09-09 13:45:15.024848125 | [INFO]: Client 22 with address 127.0.0.1:52794 connected to server.
+
+2025-09-09 13:45:15.226856597 | [DEBUG]: _dmserver_worker_main() - Client 23 connection stage TCP ok.
+2025-09-09 13:45:15.226874786 | [DEBUG]: _dmserver_worker_main() - Client 23 assigned to point (1, 1).
+2025-09-09 13:45:15.229036303 | [DEBUG]: _dmserver_worker_main() - Client 23 connection stage TLS ok.
+2025-09-09 13:45:15.229049910 | [INFO]: Client 23 with address 127.0.0.1:52804 connected to server.
+
+2025-09-09 13:45:15.420879725 | [DEBUG]: _dmserver_worker_main() - Client 24 connection stage TCP ok.
+2025-09-09 13:45:15.420899580 | [DEBUG]: _dmserver_worker_main() - Client 24 assigned to point (2, 1).
+2025-09-09 13:45:15.422467504 | [DEBUG]: _dmserver_worker_main() - Client 24 connection stage TLS ok.
+2025-09-09 13:45:15.422478467 | [INFO]: Client 24 with address 127.0.0.1:52818 connected to server.
+
+2025-09-09 13:45:15.625989991 | [DEBUG]: _dmserver_worker_main() - Client 25 connection stage TCP ok.
+2025-09-09 13:45:15.626006027 | [DEBUG]: _dmserver_worker_main() - Client 25 assigned to point (3, 1).
+2025-09-09 13:45:15.627715992 | [DEBUG]: _dmserver_worker_main() - Client 25 connection stage TLS ok.
+2025-09-09 13:45:15.627730711 | [INFO]: Client 25 with address 127.0.0.1:52828 connected to server.
+
+2025-09-09 13:45:15.838334583 | [DEBUG]: _dmserver_worker_main() - Client 26 connection stage TCP ok.
+2025-09-09 13:45:15.838351296 | [DEBUG]: _dmserver_worker_main() - Client 26 assigned to point (4, 1).
+2025-09-09 13:45:15.840164769 | [DEBUG]: _dmserver_worker_main() - Client 26 connection stage TLS ok.
+2025-09-09 13:45:15.840179798 | [INFO]: Client 26 with address 127.0.0.1:52832 connected to server.
+
+2025-09-09 13:45:16.061359117 | [DEBUG]: _dmserver_worker_main() - Client 27 connection stage TCP ok.
+2025-09-09 13:45:16.061397858 | [DEBUG]: _dmserver_worker_main() - Client 27 assigned to point (5, 1).
+2025-09-09 13:45:16.064618276 | [DEBUG]: _dmserver_worker_main() - Client 27 connection stage TLS ok.
+2025-09-09 13:45:16.064640655 | [INFO]: Client 27 with address 127.0.0.1:52842 connected to server.
+
+2025-09-09 13:45:16.245803331 | [DEBUG]: _dmserver_worker_main() - Client 28 connection stage TCP ok.
+2025-09-09 13:45:16.245819901 | [DEBUG]: _dmserver_worker_main() - Client 28 assigned to point (6, 1).
+2025-09-09 13:45:16.247339710 | [DEBUG]: _dmserver_worker_main() - Client 28 connection stage TLS ok.
+2025-09-09 13:45:16.247350011 | [INFO]: Client 28 with address 127.0.0.1:52850 connected to server.
+
+2025-09-09 13:45:16.445611042 | [DEBUG]: _dmserver_worker_main() - Client 29 connection stage TCP ok.
+2025-09-09 13:45:16.445630710 | [DEBUG]: _dmserver_worker_main() - Client 29 assigned to point (7, 1).
+2025-09-09 13:45:16.447357838 | [DEBUG]: _dmserver_worker_main() - Client 29 connection stage TLS ok.
+2025-09-09 13:45:16.447372362 | [INFO]: Client 29 with address 127.0.0.1:52854 connected to server.
+
+2025-09-09 13:45:16.622722987 | [DEBUG]: _dmserver_worker_main() - Client 30 connection stage TCP ok.
+2025-09-09 13:45:16.622740523 | [DEBUG]: _dmserver_worker_main() - Client 30 assigned to point (0, 2).
+2025-09-09 13:45:16.624561852 | [DEBUG]: _dmserver_worker_main() - Client 30 connection stage TLS ok.
+2025-09-09 13:45:16.624573436 | [INFO]: Client 30 with address 127.0.0.1:52856 connected to server.
+
+2025-09-09 13:45:16.802526381 | [DEBUG]: _dmserver_worker_main() - Client 31 connection stage TCP ok.
+2025-09-09 13:45:16.802546729 | [DEBUG]: _dmserver_worker_main() - Client 31 assigned to point (1, 2).
+2025-09-09 13:45:16.804022285 | [DEBUG]: _dmserver_worker_main() - Client 31 connection stage TLS ok.
+2025-09-09 13:45:16.804036385 | [INFO]: Client 31 with address 127.0.0.1:52864 connected to server.
+
+2025-09-09 13:45:16.992313687 | [DEBUG]: _dmserver_worker_main() - Client 32 connection stage TCP ok.
+2025-09-09 13:45:16.992337569 | [DEBUG]: _dmserver_worker_main() - Client 32 assigned to point (2, 2).
+2025-09-09 13:45:16.994042386 | [DEBUG]: _dmserver_worker_main() - Client 32 connection stage TLS ok.
+2025-09-09 13:45:16.994054359 | [INFO]: Client 32 with address 127.0.0.1:52876 connected to server.
+
+2025-09-09 13:45:17.189847457 | [DEBUG]: _dmserver_worker_main() - Client 33 connection stage TCP ok.
+2025-09-09 13:45:17.189865233 | [DEBUG]: _dmserver_worker_main() - Client 33 assigned to point (3, 2).
+2025-09-09 13:45:17.191572629 | [DEBUG]: _dmserver_worker_main() - Client 33 connection stage TLS ok.
+2025-09-09 13:45:17.191587960 | [INFO]: Client 33 with address 127.0.0.1:52880 connected to server.
+
+2025-09-09 13:45:17.382105495 | [DEBUG]: _dmserver_worker_main() - Client 34 connection stage TCP ok.
+2025-09-09 13:45:17.382150757 | [DEBUG]: _dmserver_worker_main() - Client 34 assigned to point (4, 2).
+2025-09-09 13:45:17.383996217 | [DEBUG]: _dmserver_worker_main() - Client 34 connection stage TLS ok.
+2025-09-09 13:45:17.384007274 | [INFO]: Client 34 with address 127.0.0.1:52886 connected to server.
+
+2025-09-09 13:45:17.569843169 | [DEBUG]: _dmserver_worker_main() - Client 35 connection stage TCP ok.
+2025-09-09 13:45:17.569866383 | [DEBUG]: _dmserver_worker_main() - Client 35 assigned to point (5, 2).
+2025-09-09 13:45:17.571747841 | [DEBUG]: _dmserver_worker_main() - Client 35 connection stage TLS ok.
+2025-09-09 13:45:17.571767523 | [INFO]: Client 35 with address 127.0.0.1:52894 connected to server.
+
+2025-09-09 13:45:17.760815977 | [DEBUG]: _dmserver_worker_main() - Client 36 connection stage TCP ok.
+2025-09-09 13:45:17.760833166 | [DEBUG]: _dmserver_worker_main() - Client 36 assigned to point (6, 2).
+2025-09-09 13:45:17.762399676 | [DEBUG]: _dmserver_worker_main() - Client 36 connection stage TLS ok.
+2025-09-09 13:45:17.762411641 | [INFO]: Client 36 with address 127.0.0.1:52906 connected to server.
+
+2025-09-09 13:45:17.953969893 | [DEBUG]: _dmserver_worker_main() - Client 37 connection stage TCP ok.
+2025-09-09 13:45:17.953991793 | [DEBUG]: _dmserver_worker_main() - Client 37 assigned to point (7, 2).
+2025-09-09 13:45:17.955579660 | [DEBUG]: _dmserver_worker_main() - Client 37 connection stage TLS ok.
+2025-09-09 13:45:17.955594767 | [INFO]: Client 37 with address 127.0.0.1:52912 connected to server.
+
+2025-09-09 13:45:18.160114932 | [DEBUG]: _dmserver_worker_main() - Client 38 connection stage TCP ok.
+2025-09-09 13:45:18.160132817 | [DEBUG]: _dmserver_worker_main() - Client 38 assigned to point (0, 3).
+2025-09-09 13:45:18.162084797 | [DEBUG]: _dmserver_worker_main() - Client 38 connection stage TLS ok.
+2025-09-09 13:45:18.162100569 | [INFO]: Client 38 with address 127.0.0.1:52930 connected to server.
+
+2025-09-09 13:45:18.356502082 | [DEBUG]: _dmserver_worker_main() - Client 41 connection stage TCP ok.
+2025-09-09 13:45:18.356519552 | [DEBUG]: _dmserver_worker_main() - Client 41 assigned to point (1, 3).
+2025-09-09 13:45:18.358199645 | [DEBUG]: _dmserver_worker_main() - Client 41 connection stage TLS ok.
+2025-09-09 13:45:18.358214944 | [INFO]: Client 41 with address 127.0.0.1:51340 connected to server.
+
+2025-09-09 13:45:18.550863924 | [DEBUG]: _dmserver_worker_main() - Client 42 connection stage TCP ok.
+2025-09-09 13:45:18.550883102 | [DEBUG]: _dmserver_worker_main() - Client 42 assigned to point (2, 3).
+2025-09-09 13:45:18.552853508 | [DEBUG]: _dmserver_worker_main() - Client 42 connection stage TLS ok.
+2025-09-09 13:45:18.552870514 | [INFO]: Client 42 with address 127.0.0.1:51354 connected to server.
+
+2025-09-09 13:45:18.749266789 | [DEBUG]: _dmserver_worker_main() - Client 43 connection stage TCP ok.
+2025-09-09 13:45:18.749284831 | [DEBUG]: _dmserver_worker_main() - Client 43 assigned to point (3, 3).
+2025-09-09 13:45:18.751099514 | [DEBUG]: _dmserver_worker_main() - Client 43 connection stage TLS ok.
+2025-09-09 13:45:18.751113001 | [INFO]: Client 43 with address 127.0.0.1:51360 connected to server.
+
+2025-09-09 13:45:18.954950944 | [DEBUG]: _dmserver_worker_main() - Client 44 connection stage TCP ok.
+2025-09-09 13:45:18.954970713 | [DEBUG]: _dmserver_worker_main() - Client 44 assigned to point (4, 3).
+2025-09-09 13:45:18.956798104 | [DEBUG]: _dmserver_worker_main() - Client 44 connection stage TLS ok.
+2025-09-09 13:45:18.956814536 | [INFO]: Client 44 with address 127.0.0.1:51372 connected to server.
+
+2025-09-09 13:45:19.151501668 | [DEBUG]: _dmserver_worker_main() - Client 45 connection stage TCP ok.
+2025-09-09 13:45:19.151518680 | [DEBUG]: _dmserver_worker_main() - Client 45 assigned to point (5, 3).
+2025-09-09 13:45:19.153274724 | [DEBUG]: _dmserver_worker_main() - Client 45 connection stage TLS ok.
+2025-09-09 13:45:19.153287888 | [INFO]: Client 45 with address 127.0.0.1:51380 connected to server.
+
+2025-09-09 13:45:19.344291472 | [DEBUG]: _dmserver_worker_main() - Client 46 connection stage TCP ok.
+2025-09-09 13:45:19.344309300 | [DEBUG]: _dmserver_worker_main() - Client 46 assigned to point (6, 3).
+2025-09-09 13:45:19.345873199 | [DEBUG]: _dmserver_worker_main() - Client 46 connection stage TLS ok.
+2025-09-09 13:45:19.345887493 | [INFO]: Client 46 with address 127.0.0.1:51384 connected to server.
+
+2025-09-09 13:45:19.540551292 | [DEBUG]: _dmserver_worker_main() - Client 47 connection stage TCP ok.
+2025-09-09 13:45:19.540570708 | [DEBUG]: _dmserver_worker_main() - Client 47 assigned to point (7, 3).
+2025-09-09 13:45:19.542182223 | [DEBUG]: _dmserver_worker_main() - Client 47 connection stage TLS ok.
+2025-09-09 13:45:19.542197932 | [INFO]: Client 47 with address 127.0.0.1:51394 connected to server.
+
+2025-09-09 13:45:19.747540284 | [DEBUG]: _dmserver_worker_main() - Client 48 connection stage TCP ok.
+2025-09-09 13:45:19.747562448 | [DEBUG]: _dmserver_worker_main() - Client 48 assigned to point (0, 4).
+2025-09-09 13:45:19.749637417 | [DEBUG]: _dmserver_worker_main() - Client 48 connection stage TLS ok.
+2025-09-09 13:45:19.749664768 | [INFO]: Client 48 with address 127.0.0.1:51396 connected to server.
+
+2025-09-09 13:45:19.945403064 | [DEBUG]: _dmserver_worker_main() - Client 49 connection stage TCP ok.
+2025-09-09 13:45:19.945427927 | [DEBUG]: _dmserver_worker_main() - Client 49 assigned to point (1, 4).
+2025-09-09 13:45:19.947513203 | [DEBUG]: _dmserver_worker_main() - Client 49 connection stage TLS ok.
+2025-09-09 13:45:19.947535662 | [INFO]: Client 49 with address 127.0.0.1:51398 connected to server.
+
+2025-09-09 13:45:20.143405836 | [DEBUG]: _dmserver_worker_main() - Client 50 connection stage TCP ok.
+2025-09-09 13:45:20.143427775 | [DEBUG]: _dmserver_worker_main() - Client 50 assigned to point (2, 4).
+2025-09-09 13:45:20.144936578 | [DEBUG]: _dmserver_worker_main() - Client 50 connection stage TLS ok.
+2025-09-09 13:45:20.144947848 | [INFO]: Client 50 with address 127.0.0.1:51414 connected to server.
+
+2025-09-09 13:45:20.354054088 | [DEBUG]: _dmserver_worker_main() - Client 51 connection stage TCP ok.
+2025-09-09 13:45:20.354077326 | [DEBUG]: _dmserver_worker_main() - Client 51 assigned to point (3, 4).
+2025-09-09 13:45:20.355686053 | [DEBUG]: _dmserver_worker_main() - Client 51 connection stage TLS ok.
+2025-09-09 13:45:20.355702533 | [INFO]: Client 51 with address 127.0.0.1:51426 connected to server.
+
+2025-09-09 13:45:20.553957273 | [DEBUG]: _dmserver_worker_main() - Client 52 connection stage TCP ok.
+2025-09-09 13:45:20.553976521 | [DEBUG]: _dmserver_worker_main() - Client 52 assigned to point (4, 4).
+2025-09-09 13:45:20.555876347 | [DEBUG]: _dmserver_worker_main() - Client 52 connection stage TLS ok.
+2025-09-09 13:45:20.555893673 | [INFO]: Client 52 with address 127.0.0.1:51434 connected to server.
+
+2025-09-09 13:45:20.749353163 | [DEBUG]: _dmserver_worker_main() - Client 53 connection stage TCP ok.
+2025-09-09 13:45:20.749374543 | [DEBUG]: _dmserver_worker_main() - Client 53 assigned to point (5, 4).
+2025-09-09 13:45:20.751378199 | [DEBUG]: _dmserver_worker_main() - Client 53 connection stage TLS ok.
+2025-09-09 13:45:20.751389088 | [INFO]: Client 53 with address 127.0.0.1:51446 connected to server.
+
+2025-09-09 13:45:20.944866583 | [DEBUG]: _dmserver_worker_main() - Client 54 connection stage TCP ok.
+2025-09-09 13:45:20.944883979 | [DEBUG]: _dmserver_worker_main() - Client 54 assigned to point (6, 4).
+2025-09-09 13:45:20.946311111 | [DEBUG]: _dmserver_worker_main() - Client 54 connection stage TLS ok.
+2025-09-09 13:45:20.946321246 | [INFO]: Client 54 with address 127.0.0.1:51456 connected to server.
+
+2025-09-09 13:45:21.146764381 | [DEBUG]: _dmserver_worker_main() - Client 55 connection stage TCP ok.
+2025-09-09 13:45:21.146784787 | [DEBUG]: _dmserver_worker_main() - Client 55 assigned to point (7, 4).
+2025-09-09 13:45:21.148586534 | [DEBUG]: _dmserver_worker_main() - Client 55 connection stage TLS ok.
+2025-09-09 13:45:21.148600011 | [INFO]: Client 55 with address 127.0.0.1:51458 connected to server.
+
+2025-09-09 13:45:21.344313795 | [DEBUG]: _dmserver_worker_main() - Client 56 connection stage TCP ok.
+2025-09-09 13:45:21.344329886 | [DEBUG]: _dmserver_worker_main() - Client 56 assigned to point (0, 5).
+2025-09-09 13:45:21.345990670 | [DEBUG]: _dmserver_worker_main() - Client 56 connection stage TLS ok.
+2025-09-09 13:45:21.346003183 | [INFO]: Client 56 with address 127.0.0.1:51468 connected to server.
+
+2025-09-09 13:45:21.545724994 | [DEBUG]: _dmserver_worker_main() - Client 57 connection stage TCP ok.
+2025-09-09 13:45:21.545741466 | [DEBUG]: _dmserver_worker_main() - Client 57 assigned to point (1, 5).
+2025-09-09 13:45:21.547508201 | [DEBUG]: _dmserver_worker_main() - Client 57 connection stage TLS ok.
+2025-09-09 13:45:21.547516922 | [INFO]: Client 57 with address 127.0.0.1:51474 connected to server.
+
+2025-09-09 13:45:21.748798960 | [DEBUG]: _dmserver_worker_main() - Client 58 connection stage TCP ok.
+2025-09-09 13:45:21.748827256 | [DEBUG]: _dmserver_worker_main() - Client 58 assigned to point (2, 5).
+2025-09-09 13:45:21.750650345 | [DEBUG]: _dmserver_worker_main() - Client 58 connection stage TLS ok.
+2025-09-09 13:45:21.750679373 | [INFO]: Client 58 with address 127.0.0.1:51480 connected to server.
+
+2025-09-09 13:45:21.957640177 | [DEBUG]: _dmserver_worker_main() - Client 59 connection stage TCP ok.
+2025-09-09 13:45:21.957657875 | [DEBUG]: _dmserver_worker_main() - Client 59 assigned to point (3, 5).
+2025-09-09 13:45:21.959615682 | [DEBUG]: _dmserver_worker_main() - Client 59 connection stage TLS ok.
+2025-09-09 13:45:21.959651008 | [INFO]: Client 59 with address 127.0.0.1:51486 connected to server.
+
+2025-09-09 13:45:22.162148146 | [DEBUG]: _dmserver_worker_main() - Client 60 connection stage TCP ok.
+2025-09-09 13:45:22.162169577 | [DEBUG]: _dmserver_worker_main() - Client 60 assigned to point (4, 5).
+2025-09-09 13:45:22.164012357 | [DEBUG]: _dmserver_worker_main() - Client 60 connection stage TLS ok.
+2025-09-09 13:45:22.164022417 | [INFO]: Client 60 with address 127.0.0.1:51490 connected to server.
+
+2025-09-09 13:45:22.367644789 | [DEBUG]: _dmserver_worker_main() - Client 61 connection stage TCP ok.
+2025-09-09 13:45:22.367668207 | [DEBUG]: _dmserver_worker_main() - Client 61 assigned to point (5, 5).
+2025-09-09 13:45:22.369381285 | [DEBUG]: _dmserver_worker_main() - Client 61 connection stage TLS ok.
+2025-09-09 13:45:22.369397412 | [INFO]: Client 61 with address 127.0.0.1:51494 connected to server.
+
+2025-09-09 13:45:22.569124339 | [DEBUG]: _dmserver_worker_main() - Client 62 connection stage TCP ok.
+2025-09-09 13:45:22.569143596 | [DEBUG]: _dmserver_worker_main() - Client 62 assigned to point (6, 5).
+2025-09-09 13:45:22.571015629 | [DEBUG]: _dmserver_worker_main() - Client 62 connection stage TLS ok.
+2025-09-09 13:45:22.571038681 | [INFO]: Client 62 with address 127.0.0.1:51504 connected to server.
+
+2025-09-09 13:45:22.778680426 | [DEBUG]: _dmserver_worker_main() - Client 63 connection stage TCP ok.
+2025-09-09 13:45:22.778696317 | [DEBUG]: _dmserver_worker_main() - Client 63 assigned to point (7, 5).
+2025-09-09 13:45:22.780304308 | [DEBUG]: _dmserver_worker_main() - Client 63 connection stage TLS ok.
+2025-09-09 13:45:22.780321039 | [INFO]: Client 63 with address 127.0.0.1:51512 connected to server.
+
+2025-09-09 13:45:22.962483633 | [DEBUG]: _dmserver_worker_main() - Client 64 connection stage TCP ok.
+2025-09-09 13:45:22.962502521 | [DEBUG]: _dmserver_worker_main() - Client 64 assigned to point (0, 6).
+2025-09-09 13:45:22.964234185 | [DEBUG]: _dmserver_worker_main() - Client 64 connection stage TLS ok.
+2025-09-09 13:45:22.964244458 | [INFO]: Client 64 with address 127.0.0.1:51528 connected to server.
+
+2025-09-09 13:45:23.168742503 | [DEBUG]: _dmserver_worker_main() - Client 65 connection stage TCP ok.
+2025-09-09 13:45:23.168764605 | [DEBUG]: _dmserver_worker_main() - Client 65 assigned to point (1, 6).
+2025-09-09 13:45:23.170641289 | [DEBUG]: _dmserver_worker_main() - Client 65 connection stage TLS ok.
+2025-09-09 13:45:23.170656189 | [INFO]: Client 65 with address 127.0.0.1:51532 connected to server.
+
+2025-09-09 13:45:23.365554223 | [DEBUG]: _dmserver_worker_main() - Client 66 connection stage TCP ok.
+2025-09-09 13:45:23.365584521 | [DEBUG]: _dmserver_worker_main() - Client 66 assigned to point (2, 6).
+2025-09-09 13:45:23.367340298 | [DEBUG]: _dmserver_worker_main() - Client 66 connection stage TLS ok.
+2025-09-09 13:45:23.367350861 | [INFO]: Client 66 with address 127.0.0.1:51534 connected to server.
+
+2025-09-09 13:45:23.567267242 | [DEBUG]: _dmserver_worker_main() - Client 67 connection stage TCP ok.
+2025-09-09 13:45:23.567347344 | [DEBUG]: _dmserver_worker_main() - Client 67 assigned to point (3, 6).
+2025-09-09 13:45:23.569097945 | [DEBUG]: _dmserver_worker_main() - Client 67 connection stage TLS ok.
+2025-09-09 13:45:23.569110074 | [INFO]: Client 67 with address 127.0.0.1:51536 connected to server.
+
+2025-09-09 13:45:23.781770018 | [DEBUG]: _dmserver_worker_main() - Client 68 connection stage TCP ok.
+2025-09-09 13:45:23.781795918 | [DEBUG]: _dmserver_worker_main() - Client 68 assigned to point (4, 6).
+2025-09-09 13:45:23.784035068 | [DEBUG]: _dmserver_worker_main() - Client 68 connection stage TLS ok.
+2025-09-09 13:45:23.784050816 | [INFO]: Client 68 with address 127.0.0.1:51548 connected to server.
+
+2025-09-09 13:45:23.977648299 | [DEBUG]: _dmserver_worker_main() - Client 69 connection stage TCP ok.
+2025-09-09 13:45:23.977669426 | [DEBUG]: _dmserver_worker_main() - Client 69 assigned to point (5, 6).
+2025-09-09 13:45:23.979212378 | [DEBUG]: _dmserver_worker_main() - Client 69 connection stage TLS ok.
+2025-09-09 13:45:23.979223875 | [INFO]: Client 69 with address 127.0.0.1:51550 connected to server.
+
+2025-09-09 13:45:34.742102895 | [INFO]: Starting broadcast...
+2025-09-09 13:45:34.742153941 | [DEBUG]: Broadcast queued to client 14.
+2025-09-09 13:45:34.742161370 | [DEBUG]: Broadcast queued to client 22.
+2025-09-09 13:45:34.742167427 | [DEBUG]: Broadcast queued to client 30.
+2025-09-09 13:45:34.742174005 | [DEBUG]: Broadcast queued to client 38.
+2025-09-09 13:45:34.742186686 | [DEBUG]: Broadcast queued to client 48.
+2025-09-09 13:45:34.742192807 | [DEBUG]: Broadcast queued to client 56.
+2025-09-09 13:45:34.742199852 | [DEBUG]: Broadcast queued to client 64.
+2025-09-09 13:45:34.742211914 | [DEBUG]: Broadcast queued to client 15.
+2025-09-09 13:45:34.742221379 | [DEBUG]: Broadcast queued to client 23.
+2025-09-09 13:45:34.742235672 | [DEBUG]: Broadcast queued to client 31.
+2025-09-09 13:45:34.742245716 | [DEBUG]: Broadcast queued to client 41.
+2025-09-09 13:45:34.742253896 | [DEBUG]: Broadcast queued to client 49.
+2025-09-09 13:45:34.742261561 | [DEBUG]: Broadcast queued to client 57.
+2025-09-09 13:45:34.742269052 | [DEBUG]: Broadcast queued to client 65.
+2025-09-09 13:45:34.742279956 | [DEBUG]: Write of 11 bytes from client 14.
+
+2025-09-09 13:45:34.742326269 | [DEBUG]: Write of 11 bytes from client 15.
+
+2025-09-09 13:45:34.742352560 | [DEBUG]: Write of 11 bytes from client 22.
+
+2025-09-09 13:45:34.742363095 | [DEBUG]: Write of 11 bytes from client 23.
+
+2025-09-09 13:45:34.742386115 | [DEBUG]: Write of 11 bytes from client 30.
+
+2025-09-09 13:45:34.742391188 | [DEBUG]: Write of 11 bytes from client 31.
+
+2025-09-09 13:45:34.742389253 | [DEBUG]: Write of 11 bytes from client 16.
+
+2025-09-09 13:45:34.742426840 | [DEBUG]: Write of 11 bytes from client 41.
+
+2025-09-09 13:45:34.742293510 | [DEBUG]: Broadcast queued to client 16.
+2025-09-09 13:45:34.742460709 | [DEBUG]: Broadcast queued to client 24.
+2025-09-09 13:45:34.742469977 | [DEBUG]: Broadcast queued to client 32.
+2025-09-09 13:45:34.742475543 | [DEBUG]: Write of 11 bytes from client 49.
+
+2025-09-09 13:45:34.742481332 | [DEBUG]: Broadcast queued to client 42.
+2025-09-09 13:45:34.742498141 | [DEBUG]: Broadcast queued to client 50.
+2025-09-09 13:45:34.742425877 | [DEBUG]: Write of 11 bytes from client 38.
+
+2025-09-09 13:45:34.742508794 | [DEBUG]: Broadcast queued to client 58.
+2025-09-09 13:45:34.742539426 | [DEBUG]: Broadcast queued to client 66.
+2025-09-09 13:45:34.742548480 | [DEBUG]: Write of 11 bytes from client 48.
+
+2025-09-09 13:45:34.742511071 | [DEBUG]: Write of 11 bytes from client 57.
+
+2025-09-09 13:45:34.742573199 | [DEBUG]: Write of 11 bytes from client 24.
+
+2025-09-09 13:45:34.742560650 | [DEBUG]: Broadcast queued to client 17.
+2025-09-09 13:45:34.742611114 | [DEBUG]: Broadcast queued to client 25.
+2025-09-09 13:45:34.742580512 | [DEBUG]: Write of 11 bytes from client 56.
+
+2025-09-09 13:45:34.742658663 | [DEBUG]: Write of 11 bytes from client 17.
+
+2025-09-09 13:45:34.742600572 | [DEBUG]: Write of 11 bytes from client 65.
+
+2025-09-09 13:45:34.742673614 | [DEBUG]: Write of 11 bytes from client 64.
+
+2025-09-09 13:45:34.742623272 | [DEBUG]: Write of 11 bytes from client 32.
+
+2025-09-09 13:45:34.742700812 | [DEBUG]: Write of 11 bytes from client 25.
+
+2025-09-09 13:45:34.742620850 | [DEBUG]: Broadcast queued to client 33.
+2025-09-09 13:45:34.742738459 | [DEBUG]: Write of 11 bytes from client 42.
+
+2025-09-09 13:45:34.742750909 | [DEBUG]: Broadcast queued to client 43.
+2025-09-09 13:45:34.742722079 | [DEBUG]: Write of 11 bytes from client 33.
+
+2025-09-09 13:45:34.742775479 | [DEBUG]: Write of 11 bytes from client 50.
+
+2025-09-09 13:45:34.742765877 | [DEBUG]: Broadcast queued to client 51.
+2025-09-09 13:45:34.742793903 | [DEBUG]: Broadcast queued to client 59.
+2025-09-09 13:45:34.742801901 | [DEBUG]: Write of 11 bytes from client 43.
+
+2025-09-09 13:45:34.742808470 | [DEBUG]: Write of 11 bytes from client 58.
+
+2025-09-09 13:45:34.742832792 | [DEBUG]: Write of 11 bytes from client 51.
+
+2025-09-09 13:45:34.742840743 | [DEBUG]: Write of 11 bytes from client 66.
+
+2025-09-09 13:45:34.742803783 | [DEBUG]: Broadcast queued to client 67.
+2025-09-09 13:45:34.742867755 | [DEBUG]: Write of 11 bytes from client 59.
+
+2025-09-09 13:45:34.742873747 | [DEBUG]: Broadcast queued to client 18.
+2025-09-09 13:45:34.742885252 | [DEBUG]: Broadcast queued to client 26.
+2025-09-09 13:45:34.742894869 | [DEBUG]: Broadcast queued to client 34.
+2025-09-09 13:45:34.742900183 | [DEBUG]: Write of 11 bytes from client 67.
+
+2025-09-09 13:45:34.742907530 | [DEBUG]: Broadcast queued to client 44.
+2025-09-09 13:45:34.742919705 | [DEBUG]: Broadcast queued to client 52.
+2025-09-09 13:45:34.742929600 | [DEBUG]: Write of 11 bytes from client 18.
+
+2025-09-09 13:45:34.742930831 | [DEBUG]: Broadcast queued to client 60.
+2025-09-09 13:45:34.742971186 | [DEBUG]: Broadcast queued to client 68.
+2025-09-09 13:45:34.742988819 | [DEBUG]: Broadcast queued to client 19.
+2025-09-09 13:45:34.742975710 | [DEBUG]: Write of 11 bytes from client 26.
+
+2025-09-09 13:45:34.742998040 | [DEBUG]: Broadcast queued to client 27.
+2025-09-09 13:45:34.743027632 | [DEBUG]: Broadcast queued to client 35.
+2025-09-09 13:45:34.743033434 | [DEBUG]: Write of 11 bytes from client 19.
+
+2025-09-09 13:45:34.743041815 | [DEBUG]: Write of 11 bytes from client 34.
+
+2025-09-09 13:45:34.743039269 | [DEBUG]: Broadcast queued to client 45.
+2025-09-09 13:45:34.743070740 | [DEBUG]: Broadcast queued to client 53.
+2025-09-09 13:45:34.743076108 | [DEBUG]: Write of 11 bytes from client 44.
+
+2025-09-09 13:45:34.743083542 | [DEBUG]: Broadcast queued to client 61.
+2025-09-09 13:45:34.743073668 | [DEBUG]: Write of 11 bytes from client 27.
+
+2025-09-09 13:45:34.743100892 | [DEBUG]: Write of 11 bytes from client 52.
+
+2025-09-09 13:45:34.743096417 | [DEBUG]: Broadcast queued to client 69.
+2025-09-09 13:45:34.743123624 | [DEBUG]: Write of 11 bytes from client 60.
+
+2025-09-09 13:45:34.743132288 | [DEBUG]: Write of 11 bytes from client 35.
+
+2025-09-09 13:45:34.743133973 | [DEBUG]: Broadcast queued to client 20.
+2025-09-09 13:45:34.743163664 | [DEBUG]: Broadcast queued to client 28.
+2025-09-09 13:45:34.743169833 | [DEBUG]: Write of 11 bytes from client 45.
+
+2025-09-09 13:45:34.743177715 | [DEBUG]: Broadcast queued to client 36.
+2025-09-09 13:45:34.743190830 | [DEBUG]: Broadcast queued to client 46.
+2025-09-09 13:45:34.743203247 | [DEBUG]: Broadcast queued to client 54.
+2025-09-09 13:45:34.743215923 | [DEBUG]: Broadcast queued to client 62.
+2025-09-09 13:45:34.743235390 | [DEBUG]: Broadcast queued to client 21.
+2025-09-09 13:45:34.743181923 | [DEBUG]: Write of 11 bytes from client 20.
+
+2025-09-09 13:45:34.743261572 | [DEBUG]: Write of 11 bytes from client 21.
+
+2025-09-09 13:45:34.743283174 | [DEBUG]: Write of 11 bytes from client 28.
+
+2025-09-09 13:45:34.743246176 | [DEBUG]: Broadcast queued to client 29.
+2025-09-09 13:45:34.743307270 | [DEBUG]: Write of 11 bytes from client 36.
+
+2025-09-09 13:45:34.743315887 | [DEBUG]: Broadcast queued to client 37.
+2025-09-09 13:45:34.743206928 | [DEBUG]: Write of 11 bytes from client 53.
+
+2025-09-09 13:45:34.743149709 | [DEBUG]: Write of 11 bytes from client 68.
+
+2025-09-09 13:45:34.743344603 | [DEBUG]: Write of 11 bytes from client 46.
+
+2025-09-09 13:45:34.743363624 | [DEBUG]: Write of 11 bytes from client 61.
+
+2025-09-09 13:45:34.743302322 | [DEBUG]: Write of 11 bytes from client 29.
+
+2025-09-09 13:45:34.743328549 | [DEBUG]: Broadcast queued to client 47.
+2025-09-09 13:45:34.743398065 | [DEBUG]: Broadcast queued to client 55.
+2025-09-09 13:45:34.743407806 | [DEBUG]: Write of 11 bytes from client 69.
+
+2025-09-09 13:45:34.743414476 | [DEBUG]: Broadcast queued to client 63.
+2025-09-09 13:45:34.743384411 | [DEBUG]: Write of 11 bytes from client 54.
+
+2025-09-09 13:45:34.743433167 | [DEBUG]: Write of 11 bytes from client 37.
+
+2025-09-09 13:45:34.743429048 | [INFO]: Broadcast finalized.
+
+2025-09-09 13:45:34.743470793 | [DEBUG]: Write of 11 bytes from client 62.
+
+2025-09-09 13:45:34.743473059 | [DEBUG]: Write of 11 bytes from client 47.
+
+2025-09-09 13:45:34.743526278 | [DEBUG]: Write of 11 bytes from client 55.
+
+2025-09-09 13:45:34.743564320 | [DEBUG]: Write of 11 bytes from client 63.
+
+2025-09-09 13:45:49.893024359 | [INFO]: Starting unicast to client 69...
+2025-09-09 13:45:49.893077324 | [DEBUG]: Unicast queued.
+2025-09-09 13:45:49.893085424 | [INFO]: Unicast finalized.
+
+2025-09-09 13:45:49.893248335 | [DEBUG]: Write of 9 bytes from client 69.
+
+2025-09-09 13:47:13.393521659 | [INFO]: Client 14 timedout, connection closed.
+
+2025-09-09 13:47:13.393642725 | [INFO]: Client 15 timedout, connection closed.
+
+2025-09-09 13:47:13.393760262 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 14.
+2025-09-09 13:47:13.393851069 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 15.
+2025-09-09 13:47:15.393684435 | [INFO]: Client 18 timedout, connection closed.
+
+2025-09-09 13:47:15.393795885 | [INFO]: Client 21 timedout, connection closed.
+
+2025-09-09 13:47:15.393877678 | [INFO]: Client 17 timedout, connection closed.
+
+2025-09-09 13:47:15.393974644 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 18.
+2025-09-09 13:47:15.393684439 | [INFO]: Client 19 timedout, connection closed.
+
+2025-09-09 13:47:15.394074684 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 17.
+2025-09-09 13:47:15.393717954 | [INFO]: Client 20 timedout, connection closed.
+
+2025-09-09 13:47:15.393795881 | [INFO]: Client 16 timedout, connection closed.
+
+2025-09-09 13:47:15.394019579 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 21.
+2025-09-09 13:47:15.394144430 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 19.
+2025-09-09 13:47:15.394429229 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 16.
+2025-09-09 13:47:15.394290889 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 20.
+2025-09-09 13:47:17.393983039 | [INFO]: Client 22 timedout, connection closed.
+
+2025-09-09 13:47:17.394149919 | [INFO]: Client 23 timedout, connection closed.
+
+2025-09-09 13:47:17.394175265 | [INFO]: Client 25 timedout, connection closed.
+
+2025-09-09 13:47:17.394164940 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 22.
+2025-09-09 13:47:17.394211536 | [INFO]: Client 30 timedout, connection closed.
+
+2025-09-09 13:47:17.394267361 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 30.
+2025-09-09 13:47:17.394274462 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 25.
+2025-09-09 13:47:17.394185274 | [INFO]: Client 26 timedout, connection closed.
+
+2025-09-09 13:47:17.394317004 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 23.
+2025-09-09 13:47:17.394364396 | [INFO]: Client 31 timedout, connection closed.
+
+2025-09-09 13:47:17.394434227 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 31.
+2025-09-09 13:47:17.394447740 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 26.
+2025-09-09 13:47:17.394435500 | [INFO]: Client 29 timedout, connection closed.
+
+2025-09-09 13:47:17.394471759 | [INFO]: Client 27 timedout, connection closed.
+
+2025-09-09 13:47:17.394517962 | [INFO]: Client 24 timedout, connection closed.
+
+2025-09-09 13:47:17.394558310 | [INFO]: Client 28 timedout, connection closed.
+
+2025-09-09 13:47:17.394592205 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 27.
+2025-09-09 13:47:17.394617143 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 29.
+2025-09-09 13:47:17.394638599 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 28.
+2025-09-09 13:47:17.394623347 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 24.
+2025-09-09 13:47:17.394660951 | [INFO]: Client 32 timedout, connection closed.
+
+2025-09-09 13:47:17.394721031 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 32.
+2025-09-09 13:47:19.394392352 | [INFO]: Client 33 timedout, connection closed.
+
+2025-09-09 13:47:19.394392358 | [INFO]: Client 38 timedout, connection closed.
+
+2025-09-09 13:47:19.394524440 | [INFO]: Client 41 timedout, connection closed.
+
+2025-09-09 13:47:19.394538372 | [INFO]: Client 34 timedout, connection closed.
+
+2025-09-09 13:47:19.394538605 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 33.
+2025-09-09 13:47:19.394564820 | [INFO]: Client 43 timedout, connection closed.
+
+2025-09-09 13:47:19.394538543 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 38.
+2025-09-09 13:47:19.394611649 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 43.
+2025-09-09 13:47:19.394636323 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 34.
+2025-09-09 13:47:19.394637138 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 41.
+2025-09-09 13:47:19.394650124 | [INFO]: Client 44 timedout, connection closed.
+
+2025-09-09 13:47:19.394673972 | [INFO]: Client 35 timedout, connection closed.
+
+2025-09-09 13:47:19.394713282 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 44.
+2025-09-09 13:47:19.394717141 | [INFO]: Client 36 timedout, connection closed.
+
+2025-09-09 13:47:19.394713893 | [INFO]: Client 37 timedout, connection closed.
+
+2025-09-09 13:47:19.394737020 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 35.
+2025-09-09 13:47:19.394755153 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 36.
+2025-09-09 13:47:19.394797591 | [INFO]: Client 42 timedout, connection closed.
+
+2025-09-09 13:47:19.394826082 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 37.
+2025-09-09 13:47:19.394859424 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 42.
+2025-09-09 13:47:21.394693171 | [INFO]: Client 48 timedout, connection closed.
+
+2025-09-09 13:47:21.394697024 | [INFO]: Client 51 timedout, connection closed.
+
+2025-09-09 13:47:21.394800506 | [INFO]: Client 52 timedout, connection closed.
+
+2025-09-09 13:47:21.394832529 | [INFO]: Client 49 timedout, connection closed.
+
+2025-09-09 13:47:21.394849548 | [INFO]: Client 45 timedout, connection closed.
+
+2025-09-09 13:47:21.394861706 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 51.
+2025-09-09 13:47:21.394877682 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 48.
+2025-09-09 13:47:21.394913218 | [INFO]: Client 46 timedout, connection closed.
+
+2025-09-09 13:47:21.394927138 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 52.
+2025-09-09 13:47:21.394938215 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 45.
+2025-09-09 13:47:21.394945724 | [INFO]: Client 53 timedout, connection closed.
+
+2025-09-09 13:47:21.394962916 | [INFO]: Client 47 timedout, connection closed.
+
+2025-09-09 13:47:21.394973353 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 46.
+2025-09-09 13:47:21.394987047 | [INFO]: Client 54 timedout, connection closed.
+
+2025-09-09 13:47:21.394993262 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 53.
+2025-09-09 13:47:21.394975078 | [INFO]: Client 50 timedout, connection closed.
+
+2025-09-09 13:47:21.394963557 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 49.
+2025-09-09 13:47:21.395030579 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 54.
+2025-09-09 13:47:21.395057470 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 47.
+2025-09-09 13:47:21.395107382 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 50.
+2025-09-09 13:47:23.394965405 | [INFO]: Client 59 timedout, connection closed.
+
+2025-09-09 13:47:23.394965400 | [INFO]: Client 56 timedout, connection closed.
+
+2025-09-09 13:47:23.395010877 | [INFO]: Client 60 timedout, connection closed.
+
+2025-09-09 13:47:23.395071562 | [INFO]: Client 61 timedout, connection closed.
+
+2025-09-09 13:47:23.395127714 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 59.
+2025-09-09 13:47:23.395135129 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 60.
+2025-09-09 13:47:23.395127722 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 56.
+2025-09-09 13:47:23.395161639 | [INFO]: Client 64 timedout, connection closed.
+
+2025-09-09 13:47:23.395136435 | [INFO]: Client 62 timedout, connection closed.
+
+2025-09-09 13:47:23.395191044 | [INFO]: Client 58 timedout, connection closed.
+
+2025-09-09 13:47:23.395156617 | [INFO]: Client 55 timedout, connection closed.
+
+2025-09-09 13:47:23.395220073 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 62.
+2025-09-09 13:47:23.395222255 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 64.
+2025-09-09 13:47:23.395152315 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 61.
+2025-09-09 13:47:23.395254574 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 58.
+2025-09-09 13:47:23.395300717 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 55.
+2025-09-09 13:47:23.395311398 | [INFO]: Client 63 timedout, connection closed.
+
+2025-09-09 13:47:23.395369240 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 63.
+2025-09-09 13:47:23.395131045 | [INFO]: Client 57 timedout, connection closed.
+
+2025-09-09 13:47:23.395486493 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 57.
+2025-09-09 13:47:25.395246969 | [INFO]: Client 68 timedout, connection closed.
+
+2025-09-09 13:47:25.395324150 | [INFO]: Client 69 timedout, connection closed.
+
+2025-09-09 13:47:25.395345994 | [INFO]: Client 66 timedout, connection closed.
+
+2025-09-09 13:47:25.395346581 | [INFO]: Client 67 timedout, connection closed.
+
+2025-09-09 13:47:25.395414196 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 68.
+2025-09-09 13:47:25.395476205 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 66.
+2025-09-09 13:47:25.395476210 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 69.
+2025-09-09 13:47:25.395476688 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 67.
+2025-09-09 13:47:25.395610919 | [INFO]: Client 65 timedout, connection closed.
+
+2025-09-09 13:47:25.395704305 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 65.
+2025-09-09 13:48:01.427045889 | [INFO]: DMServer stopping...
+2025-09-09 13:48:04.124665932 | [DEBUG]: dmserver_stop() - Stopped main thread 1459607232.
+2025-09-09 13:48:04.124719056 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 2009683648.
+2025-09-09 13:48:04.124739896 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 2001290944.
+2025-09-09 13:48:04.124770541 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1992898240.
+2025-09-09 13:48:04.124795952 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1879045824.
+2025-09-09 13:48:04.124820458 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1967720128.
+2025-09-09 13:48:04.124851776 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1870653120.
+2025-09-09 13:48:04.124885760 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1845475008.
+2025-09-09 13:48:04.124912494 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1828689600.
+2025-09-09 13:48:04.124921166 | [INFO]: DMServer stopped.
+
+2025-09-09 13:48:04.124927510 | [INFO]: DMServer closing...
+2025-09-09 13:48:04.124956584 | [DEBUG]: dmserver_close() - server connection data deinitialized.
+2025-09-09 13:48:04.125046775 | [DEBUG]: dmserver_close() - server ssl data deinitialized.
+2025-09-09 13:48:04.125055916 | [INFO]: DMServer closed.
+
+2025-09-09 13:48:04.125199005 | [INFO]: -------- DMServer at (0x756a78497010) deinitialized.
+
+2025-09-09 13:48:17.263853124 | [INFO]: -------- DMServer initialization completed at (0x71aa61497010).
+
+2025-09-09 13:48:17.264038401 | [INFO]: DMServer opening...
+2025-09-09 13:48:17.264057786 | [DEBUG]: dmserver_open() - server connection data initialized.
+2025-09-09 13:48:17.265803632 | [DEBUG]: dmserver_open() - server ssl data initialized.
+2025-09-09 13:48:17.265812265 | [DEBUG]: dmserver_open() - server listening, with a backlog of size 4096.
+2025-09-09 13:48:17.265816203 | [INFO]: DMServer open with address 0.0.0.0:2020.
+
+2025-09-09 13:48:17.265817609 | [INFO]: DMServer starting run...
+2025-09-09 13:48:17.265853574 | [DEBUG]: dmserver_run() - Launched subordinated thread 1623807680.
+2025-09-09 13:48:17.265872707 | [DEBUG]: dmserver_run() - Launched subordinated thread 1615414976.
+2025-09-09 13:48:17.265891906 | [DEBUG]: dmserver_run() - Launched subordinated thread 1598629568.
+2025-09-09 13:48:17.265963921 | [DEBUG]: dmserver_run() - Launched subordinated thread 1476392640.
+2025-09-09 13:48:17.266005172 | [DEBUG]: dmserver_run() - Launched subordinated thread 1565058752.
+2025-09-09 13:48:17.266028577 | [DEBUG]: dmserver_run() - Launched subordinated thread 1556666048.
+2025-09-09 13:48:17.266051472 | [DEBUG]: dmserver_run() - Launched subordinated thread 1459607232.
+2025-09-09 13:48:17.266091804 | [DEBUG]: dmserver_run() - Launched subordinated thread 1442821824.
+2025-09-09 13:48:17.266134240 | [DEBUG]: dmserver_run() - Launched main thread 1073739456.
+2025-09-09 13:48:17.266137185 | [INFO]: DMServer running.
+
+2025-09-09 13:48:19.653888287 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TCP ok.
+2025-09-09 13:48:19.653950911 | [DEBUG]: _dmserver_worker_main() - Client 14 assigned to point (0, 0).
+2025-09-09 13:48:19.655877566 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TLS ok.
+2025-09-09 13:48:19.655894051 | [INFO]: Client 14 with address 127.0.0.1:40794 connected to server.
+
+2025-09-09 13:48:19.973147135 | [DEBUG]: _dmserver_worker_main() - Client 15 connection stage TCP ok.
+2025-09-09 13:48:19.973162472 | [DEBUG]: _dmserver_worker_main() - Client 15 assigned to point (1, 0).
+2025-09-09 13:48:19.974867325 | [DEBUG]: _dmserver_worker_main() - Client 15 connection stage TLS ok.
+2025-09-09 13:48:19.974876334 | [INFO]: Client 15 with address 127.0.0.1:40804 connected to server.
+
+2025-09-09 13:48:23.694882167 | [INFO]: DMServer stopping...
+2025-09-09 13:48:23.977493992 | [DEBUG]: dmserver_stop() - Stopped main thread 1073739456.
+2025-09-09 13:48:23.979409280 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 15.
+2025-09-09 13:48:27.664653506 | [DEBUG]: _dmserver_cconn_disconnect() - Closed client 14.
+2025-09-09 13:48:27.664868282 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1623807680.
+2025-09-09 13:48:27.664925291 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1615414976.
+2025-09-09 13:48:27.664963429 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1598629568.
+2025-09-09 13:48:27.664991371 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1476392640.
+2025-09-09 13:48:27.665034539 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1565058752.
+2025-09-09 13:48:27.665063777 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1556666048.
+2025-09-09 13:48:27.665096351 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1459607232.
+2025-09-09 13:48:27.665123630 | [DEBUG]: dmserver_stop() - Stopped subordinated thread 1442821824.
+2025-09-09 13:48:27.665132974 | [INFO]: DMServer stopped.
+
+2025-09-09 13:48:27.665140153 | [INFO]: DMServer closing...
+2025-09-09 13:48:27.665170783 | [DEBUG]: dmserver_close() - server connection data deinitialized.
+2025-09-09 13:48:27.665248841 | [DEBUG]: dmserver_close() - server ssl data deinitialized.
+2025-09-09 13:48:27.665256554 | [INFO]: DMServer closed.
+
+2025-09-09 13:48:27.665360982 | [INFO]: -------- DMServer at (0x71aa61497010) deinitialized.
+

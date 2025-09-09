@@ -1,7 +1,9 @@
 /* ---- Library --------------------------------------------------- */
 #include "dmserver.h"
-#include "libs/dmlogger.h"
-#include <openssl/ssl.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/epoll.h>
+
 
 /* ---- Hidden (internal) data structures ------------------------- */
 typedef struct dmserver_subthreads_args{
@@ -29,7 +31,9 @@ static void _dmserver_cconn_disconnect(dmserver_pt dmserver, size_t dmthindex, s
 // Internal - Dmserver-worker main/sub threads + helpers:
 static void * _dmserver_worker_main(void * args);
 static void * _dmserver_worker_sub(void * args);
-static bool _dmserver_helper_sslhandshake(struct dmserver_cliconn * c);
+static void * _dmserver_subworker_timeout(void * args);
+static void _dmserver_helper_smanager(dmserver_pt dmserver);
+static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, size_t thindex, struct dmserver_cliconn * c);
 static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex);
 static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
 static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
@@ -296,7 +300,7 @@ bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata){
         pthread_mutex_unlock(&dmclient->cwlock);
 
         // Enable the output event on his epoll file descriptor:
-        if (epoll_ctl(dmserver->sworker.wsubepfd[i], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLOUT, .data.ptr=dmclient}) < 0) {
+        if (epoll_ctl(dmserver->sworker.wsubepfd[i], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLOUT|EPOLLET, .data.ptr=dmclient}) < 0) {
             dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Broadcast not queued to client %d.", dmclient->cfd);
             continue;
         }
@@ -339,7 +343,7 @@ bool dmserver_unicast(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc, const c
     pthread_mutex_unlock(&dmclient->cwlock);
 
     // Enable the output event on his epoll file descriptor:
-    if (epoll_ctl(dmserver->sworker.wsubepfd[dmcliloc->th_pos], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLOUT, .data.ptr=dmclient}) < 0) {
+    if (epoll_ctl(dmserver->sworker.wsubepfd[dmcliloc->th_pos], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLOUT|EPOLLET, .data.ptr=dmclient}) < 0) {
         dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Unicast not queued.");
         return false;
     }
@@ -944,93 +948,18 @@ static void * _dmserver_worker_main(void * args){
     dmserver_pt dmserver = (dmserver_pt)args;
 
     // Prepare the main thread epoll to optimize CPU usage:
-    if (epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_ADD, dmserver->sconn.sfd, &(struct epoll_event){.events=EPOLLIN, .data.fd=dmserver->sconn.sfd}) < 0) 
+    if (epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_ADD, dmserver->sconn.sfd, &(struct epoll_event){.events=EPOLLIN|EPOLLET, .data.fd=dmserver->sconn.sfd}) < 0) 
         return NULL;
     struct epoll_event evs[SOMAXCONN];
     
     while (dmserver->sstate == DMSERVER_STATE_RUNNING){
-        // Epoll wait for connection (or forced wakeup via wthctl):
+        // Epoll wait for connection:
         int nfds = epoll_wait(dmserver->sworker.wmainepfd, evs, SOMAXCONN, 4000);
         if (nfds < 0  && (errno == EINTR)) continue;
 
         for (size_t i = 0; i < nfds; i++){
-            // If the event is triggered by the server socket, allow tcp connection:
-            if (evs[i].data.fd == dmserver->sconn.sfd){
-                // Accept TCP connection:
-                int temp_cfd;
-                struct sockaddr_storage temp_caddr;
-                socklen_t temp_caddrlen = sizeof(temp_caddr);
-                temp_cfd = accept4(dmserver->sconn.sfd, (struct sockaddr *)&temp_caddr, &temp_caddrlen, SOCK_NONBLOCK);
-                if (temp_cfd < 0) continue;
-                dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
-
-                // Distribute client to the less populated subordinate thread and the next free slot (just find location):
-                size_t temp_thindex = 0;
-                for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
-                    if (dmserver->sworker.wccount[i] < dmserver->sworker.wccount[temp_thindex]) temp_thindex = i;
-                }
-                size_t temp_cindex = 0;
-                for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
-                    if (dmserver->sworker.wcclis[temp_thindex][i].cstate == DMSERVER_CLIENT_STANDBY) {temp_cindex = i; break;}
-                }
-                struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[temp_thindex][temp_cindex];
-                dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d assigned to point (%lu, %lu).", temp_cfd, temp_thindex, temp_cindex);
-
-                // Set the connection data into the selected client slot & add fd to the subthread epoll:
-                if(!_dmserver_cconn_set(dmclient, &(dmserver_cliloc_t){.th_pos=temp_thindex, .wc_pos=temp_cindex}, temp_cfd, &temp_caddr, NULL)) {
-                    close(temp_cfd); 
-                    continue;
-                }
-
-                // Add the connected client to the subordinate thread:
-                if (dmserver->sconn.sssl_enable) {
-                    // TCP + TLS(pending):
-                    dmclient->cstate = DMSERVER_CLIENT_ESTABLISHING;
-
-                    dmclient->cssl = SSL_new(dmserver->sconn.sssl_ctx);
-                    if (!dmclient->cssl) {
-                        epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_DEL, dmclient->cfd, NULL);
-                        close(dmclient->cfd);
-                        _dmserver_cconn_reset(dmclient);
-                        continue;    
-                    }
-
-                    // Create BIO for the socket (non-blocking I/O)
-                    dmclient->cbio = BIO_new_socket(dmclient->cfd, BIO_NOCLOSE);
-                    if (!dmclient->cbio) {
-                        SSL_free(dmclient->cssl);
-                        epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_DEL, dmclient->cfd, NULL);
-                        close(dmclient->cfd);
-                        _dmserver_cconn_reset(dmclient);
-                        continue;
-                    }
-
-                    // Assign BIO to SSL object for both read and write operations
-                    SSL_set_bio(dmclient->cssl, dmclient->cbio, dmclient->cbio);
-
-                    if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN | EPOLLOUT, .data.ptr=dmclient}) < 0){
-                        close(dmclient->cfd);
-                        _dmserver_cconn_reset(dmclient); 
-                        continue;
-                    }
-
-                } else {
-                    // Only tcp:
-                    if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN, .data.ptr=dmclient}) < 0) {
-                        close(dmclient->cfd);
-                        _dmserver_cconn_reset(dmclient);
-                        continue;
-                    }
-
-                    // Log message:
-                    char cip_str[INET6_ADDRSTRLEN];
-                    const void * addr = (dmclient->caddr_family == AF_INET) ? (void*)&dmclient->caddr.c4.sin_addr : (void*)&dmclient->caddr.c6.sin6_addr;
-                    inet_ntop(dmclient->caddr_family, addr, cip_str, sizeof(cip_str));
-                    int cport_num = (dmclient->caddr_family == AF_INET) ? ntohs(dmclient->caddr.c4.sin_port) : ntohs(dmclient->caddr.c6.sin6_port);
-                    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", dmclient->cfd, cip_str, cport_num);
-                }
-                dmserver->sworker.wccount[temp_thindex]++;
-            }
+            // Server client connection manager:
+            _dmserver_helper_smanager(dmserver);
         }
     }
 
@@ -1043,7 +972,7 @@ static void * _dmserver_worker_main(void * args){
     @brief Function that implements the subordinated threads of dmserver.
     Manage the clients data reception and transmission.
 
-    @param void * args: Reference to the dmserver struct.
+    @param void * args: Reference to the arguments structure.
 
     @retval NULL. (always)
 */
@@ -1053,35 +982,28 @@ static void * _dmserver_worker_sub(void * args){
     dmserver_subthargs_t * dmargs = (dmserver_subthargs_t *)args;
     dmserver_pt dmserver = dmargs->dmserver;
     size_t dmthindex = dmargs->subthindex;
-    free(args);
+
+    // Subthread timeout worker to check periodically the clients timeouts:
+    pthread_t ctimeout_th;
+    if (pthread_create(&ctimeout_th, NULL, _dmserver_subworker_timeout, args)) return NULL;
 
     // Prepare the subordinate thread epoll to optimize CPU usage:
     struct epoll_event evs[DEFAULT_WORKER_CLISPERSTH];
 
     while (dmserver->sstate == DMSERVER_STATE_RUNNING){
-        // Epoll wait for events (or forced wakeup via wthctl):
+        // Epoll wait for events:
         int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, DEFAULT_WORKER_CLISPERSTH, 4000);
-        if (nfds == 0) {for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){_dmserver_helper_cctimeout(dmserver, &dmserver->sworker.wcclis[dmthindex][i], dmthindex); continue;}}
+        
+        //if (nfds == 0) {for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){_dmserver_helper_cctimeout(dmserver, &dmserver->sworker.wcclis[dmthindex][i], dmthindex); continue;}}
         if ((nfds < 0)  || (errno == EINTR)) {continue;}
 
         for (size_t i = 0; i < nfds; i++){
             // Obtain the pointer and check the state of the client that generated the event:
             struct dmserver_cliconn * dmclient = evs[i].data.ptr;
-            if (!dmclient) continue;
+            if (!dmclient || ((dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) && (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHING))) continue;
 
             // Connection stages check:
-            if (dmclient->cstate == DMSERVER_CLIENT_ESTABLISHING){
-                if(!_dmserver_helper_sslhandshake(dmclient)) continue;
-                dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TLS ok.", dmclient->cfd);
-                
-                // Log message:
-                char cip_str[INET6_ADDRSTRLEN];
-                const void * addr = (dmclient->caddr_family == AF_INET) ? (void*)&dmclient->caddr.c4.sin_addr : (void*)&dmclient->caddr.c6.sin6_addr;
-                inet_ntop(dmclient->caddr_family, addr, cip_str, sizeof(cip_str));
-                int cport_num = (dmclient->caddr_family == AF_INET) ? ntohs(dmclient->caddr.c4.sin_port) : ntohs(dmclient->caddr.c6.sin6_port);
-                dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", dmclient->cfd, cip_str, cport_num);
-            }
-            if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) continue;
+            if(!_dmserver_helper_csslhandshake(dmserver, dmthindex, dmclient)) continue;
 
             // Handle read:
             if(!_dmserver_helper_ccread(dmserver, dmclient, dmthindex, evs, i)) continue;
@@ -1091,6 +1013,10 @@ static void * _dmserver_worker_sub(void * args){
         }
     }
 
+    // Kill the timeout checker thread:
+    pthread_cancel(ctimeout_th);
+    pthread_join(ctimeout_th, NULL);
+
     // Completly closes the clients connections at thread exit:
     for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
         _dmserver_cconn_disconnect(dmserver, dmthindex, &dmserver->sworker.wcclis[dmthindex][i]);
@@ -1099,8 +1025,124 @@ static void * _dmserver_worker_sub(void * args){
     return NULL;
 }
 
+/*
+    @brief Function that implements the subthread to check clients timeout periodically of the
+    subordinate worker creator.
+    @note: The argument memory liberation happens here.
+
+    @param void * args: Reference to the arguments structure.
+
+    @retval NULL. (always)
+*/
+static void * _dmserver_subworker_timeout(void * args){
+    // Reference check and cast:
+    if (!args) return NULL;
+    dmserver_subthargs_t * dmargs = (dmserver_subthargs_t *)args;
+    dmserver_pt dmserver = dmargs->dmserver;
+    size_t dmthindex = dmargs->subthindex;
+
+    // Free args memory:
+    free(args);
+
+    while (true){
+        // Check timeout of the subworker clients:
+        for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
+            _dmserver_helper_cctimeout(dmserver, &dmserver->sworker.wcclis[dmthindex][i], dmthindex); 
+        }
+
+        // CPU sleep to avoid overload:
+        sleep(2);
+    }
+
+    return NULL;
+}
+
 
 // ======== Dmserver-worker helpers:
+/*
+    @brief Helper function that implements the server connection, distribution and management of an
+    incoming client connection.
+    
+    @param dmserver_pt server: Reference to the server struct.
+
+    @retval None.
+*/
+static void _dmserver_helper_smanager(dmserver_pt dmserver){
+    // Accept TCP connection:
+    int temp_cfd;
+    struct sockaddr_storage temp_caddr;
+    socklen_t temp_caddrlen = sizeof(temp_caddr);
+    temp_cfd = accept4(dmserver->sconn.sfd, (struct sockaddr *)&temp_caddr, &temp_caddrlen, SOCK_NONBLOCK);
+    if (temp_cfd < 0) return;
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
+
+    // Distribute client to the less populated subordinate thread and the next free slot (just find location):
+    size_t temp_thindex = 0;
+    for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
+        if (dmserver->sworker.wccount[i] < dmserver->sworker.wccount[temp_thindex]) temp_thindex = i;
+    }
+    size_t temp_cindex = 0;
+    for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
+        if (dmserver->sworker.wcclis[temp_thindex][i].cstate == DMSERVER_CLIENT_STANDBY) {temp_cindex = i; break;}
+    }
+    struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[temp_thindex][temp_cindex];
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d assigned to point (%lu, %lu).", temp_cfd, temp_thindex, temp_cindex);
+
+    // Set the connection data into the selected client slot & add fd to the subthread epoll:
+    if(!_dmserver_cconn_set(dmclient, &(dmserver_cliloc_t){.th_pos=temp_thindex, .wc_pos=temp_cindex}, temp_cfd, &temp_caddr, NULL)) {
+        close(temp_cfd); 
+        return;
+    }
+
+    // Add the connected client to the subordinate thread:
+    if (dmserver->sconn.sssl_enable) {
+        // TCP + TLS(pending):
+        dmclient->cstate = DMSERVER_CLIENT_ESTABLISHING;
+
+        dmclient->cssl = SSL_new(dmserver->sconn.sssl_ctx);
+        if (!dmclient->cssl) {
+            epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_DEL, dmclient->cfd, NULL);
+            close(dmclient->cfd);
+            _dmserver_cconn_reset(dmclient);
+            return;    
+        }
+
+        // Create BIO for the socket (non-blocking I/O)
+        dmclient->cbio = BIO_new_socket(dmclient->cfd, BIO_NOCLOSE);
+        if (!dmclient->cbio) {
+            SSL_free(dmclient->cssl);
+            epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_DEL, dmclient->cfd, NULL);
+            close(dmclient->cfd);
+            _dmserver_cconn_reset(dmclient);
+            return;
+        }
+
+        // Assign BIO to SSL object for both read and write operations
+        SSL_set_bio(dmclient->cssl, dmclient->cbio, dmclient->cbio);
+
+        if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN | EPOLLOUT | EPOLLET, .data.ptr=dmclient}) < 0){
+            close(dmclient->cfd);
+            _dmserver_cconn_reset(dmclient); 
+            return;
+        }
+
+    } else {
+        // Only tcp:
+        if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN | EPOLLET, .data.ptr=dmclient}) < 0) {
+            close(dmclient->cfd);
+            _dmserver_cconn_reset(dmclient);
+            return;
+        }
+
+        // Log message:
+        char cip_str[INET6_ADDRSTRLEN];
+        const void * addr = (dmclient->caddr_family == AF_INET) ? (void*)&dmclient->caddr.c4.sin_addr : (void*)&dmclient->caddr.c6.sin6_addr;
+        inet_ntop(dmclient->caddr_family, addr, cip_str, sizeof(cip_str));
+        int cport_num = (dmclient->caddr_family == AF_INET) ? ntohs(dmclient->caddr.c4.sin_port) : ntohs(dmclient->caddr.c6.sin6_port);
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", dmclient->cfd, cip_str, cport_num);
+    }
+    dmserver->sworker.wccount[temp_thindex]++;
+}
 
 /*
     @brief Helper function that implements the ssl handshake (in pseudo blocking mode - 20 attempts).
@@ -1111,9 +1153,10 @@ static void * _dmserver_worker_sub(void * args){
     @retval false: SSL Handshake failed.
     @retval true: SSL Handshake succeeded.
 */
-static bool _dmserver_helper_sslhandshake(struct dmserver_cliconn * c){
+static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, size_t thindex, struct dmserver_cliconn * c){
     // References check:
-    if (!c) return false;
+    if (!dmserver || !c) return false;
+    if (c->cstate != DMSERVER_CLIENT_ESTABLISHING) return true;
 
     // SSL Handshake process:
     int ssl_code = SSL_accept(c->cssl);
@@ -1123,6 +1166,24 @@ static bool _dmserver_helper_sslhandshake(struct dmserver_cliconn * c){
         case SSL_ERROR_NONE:
             // Hanshake completed successfuly:
             c->cstate = DMSERVER_CLIENT_ESTABLISHED;
+            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TLS ok.", c->cfd);
+            
+            // Modification of events in client epoll fd:
+            if (epoll_ctl(dmserver->sworker.wsubepfd[thindex], EPOLL_CTL_MOD, c->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLET, .data.ptr=c}) < 0){
+                // EPOLL error:
+                SSL_shutdown(c->cssl);
+                SSL_free(c->cssl);
+                close(c->cfd);
+                _dmserver_cconn_reset(c);
+                return false;  
+            }
+
+            // Log message:
+            char cip_str[INET6_ADDRSTRLEN];
+            const void * addr = (c->caddr_family == AF_INET) ? (void*)&c->caddr.c4.sin_addr : (void*)&c->caddr.c6.sin6_addr;
+            inet_ntop(c->caddr_family, addr, cip_str, sizeof(cip_str));
+            int cport_num = (c->caddr_family == AF_INET) ? ntohs(c->caddr.c4.sin_port) : ntohs(c->caddr.c6.sin6_port);
+            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", c->cfd, cip_str, cport_num);
             return true;
 
         case SSL_ERROR_WANT_READ:
@@ -1275,7 +1336,7 @@ static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_clico
             dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Write of %d bytes from client %d.\n", wb, dmclient->cfd);
 
             // Disable output events:
-            if (epoll_ctl(dmserver->sworker.wsubepfd[dmthindex], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN, .data.ptr=dmclient}) < 0){
+            if (epoll_ctl(dmserver->sworker.wsubepfd[dmthindex], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN | EPOLLET, .data.ptr=dmclient}) < 0){
                 // All data send error case:
                 _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
                 pthread_mutex_unlock(&dmclient->cwlock); 
