@@ -1,9 +1,9 @@
 #!/bin/bash
-
+#openssl s_client -connect 192.168.1.38:2020 -ign_eof -no_ssl3
 # Variables de entorno             #
 # -------------------------------- #
 CC=gcc
-CFLAGS_TEST="-I./libs/ -g -Wall -O2 -lssl -lcrypto -lpthread"
+CFLAGS_TEST="-I./libs/ -g -Wall -O0 -lssl -lcrypto -lpthread"
 CFLAGS_LIB="-I./libs/ -std=c99 -D_POSIX_C_SOURCE=200809L -shared -fPIC -Wall -Werror -O2 -lpthread -lssl -lcrypto"
 
 LIB_SRC="./libs/libdmlogger.so dmserver.c"

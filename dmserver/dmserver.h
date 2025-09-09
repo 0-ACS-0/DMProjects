@@ -11,8 +11,7 @@
 
     It is non-blocking, which means all the server processes are running on different threads, 
     implementing user-defined callbacks for customized application layer. 
-    Also providing simple configuration options to select how
-    the server side will behave in a low level basis.
+    Also providing simple configuration options to select how the server side will behave in a low level basis.
 
     --------
     Author: Antonio Carretero Sahuquillo
@@ -68,7 +67,7 @@
 #include <time.h>
 
 // Logging system (from my dm projects :D)
-#include "dmlogger.h"
+#include "./libs/dmlogger.h"
 
 /* ---- Defines & macros ------------------------------------------ */
 #define DEFAULT_SCONN_SPORT 1024
@@ -90,6 +89,7 @@
 enum dmserver_cconn_state{
     DMSERVER_CLIENT_UNABLE,
     DMSERVER_CLIENT_STANDBY,
+    DMSERVER_CLIENT_ESTABLISHING,
     DMSERVER_CLIENT_ESTABLISHED,
     DMSERVER_CLIENT_CLOSED
 };
@@ -147,17 +147,16 @@ struct dmserver_cliconn{
 
     // Connection data of TLS of a client:
     SSL * cssl;
+    BIO * cbio;
 
     // Read/Write buffers of a clientS:
     char crbuffer[DEFAULT_CCONN_RBUFFERLEN];
     pthread_mutex_t crlock;
     size_t crlen;
-    size_t croff;
 
     char cwbuffer[DEFAULT_CCONN_WBUFFERLEN];
     pthread_mutex_t cwlock;
     size_t cwlen;
-    size_t cwoff;
 
     // Client state:
     enum dmserver_cconn_state cstate;
@@ -183,11 +182,11 @@ struct dmserver_worker{
 // DMServer callbacks reference data structure:
 struct dmserver_callback{
     // Callbacks available:
-    void (*on_client_connect)(void * args);
-    void (*on_client_disconnect)(void * args);
-    void (*on_client_timeout)(void * args);
-    void (*on_client_rcv)(void * args);
-    void (*on_client_snd)(void * args);
+    void (*on_client_connect)(struct dmserver_cliconn * cli);
+    void (*on_client_disconnect)(struct dmserver_cliconn * cli);
+    void (*on_client_timeout)(struct dmserver_cliconn * cli);
+    void (*on_client_rcv)(struct dmserver_cliconn * cli);
+    void (*on_client_snd)(struct dmserver_cliconn * cli);
 };
 
 // DMServer data structure:
@@ -205,7 +204,9 @@ struct dmserver{
 typedef struct dmserver dmserver_t;
 typedef dmserver_t * dmserver_pt;
 
-// DMServer client location datatype:
+// DMServer client & client location datatype:
+typedef struct dmserver_cliconn dmserver_cliconn_t;
+typedef dmserver_cliconn_t * dmserver_cliconn_pt;
 typedef struct dmserver_cliloc dmserver_cliloc_t;
 typedef dmserver_cliloc_t * dmserver_cliloc_pt;
 
@@ -223,11 +224,11 @@ bool dmserver_conf_certpath(dmserver_pt dmserver, const char * certpath);
 bool dmserver_conf_keypath(dmserver_pt dmserver, const char * keypath);
 
 // Configuration - Callbacks:
-bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(void *));
-bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_disconnect)(void *));
-bool dmserver_setcb_onclienttimeout(dmserver_pt dmserver, void (*on_client_timeout)(void *));
-bool dmserver_setcb_onclientrcv(dmserver_pt dmserver, void (*on_client_rcv)(void *));
-bool dmserver_setcb_onclientsnd(dmserver_pt dmserver, void (*on_client_snd)(void *));
+bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(dmserver_cliconn_pt));
+bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_disconnect)(dmserver_cliconn_pt));
+bool dmserver_setcb_onclienttimeout(dmserver_pt dmserver, void (*on_client_timeout)(dmserver_cliconn_pt));
+bool dmserver_setcb_onclientrcv(dmserver_pt dmserver, void (*on_client_rcv)(dmserver_cliconn_pt));
+bool dmserver_setcb_onclientsnd(dmserver_pt dmserver, void (*on_client_snd)(dmserver_cliconn_pt));
 
 // Open / Run / Stop / Close:
 bool dmserver_open(dmserver_pt dmserver);

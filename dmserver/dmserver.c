@@ -1,5 +1,7 @@
 /* ---- Library --------------------------------------------------- */
 #include "dmserver.h"
+#include "libs/dmlogger.h"
+#include <openssl/ssl.h>
 
 /* ---- Hidden (internal) data structures ------------------------- */
 typedef struct dmserver_subthreads_args{
@@ -27,7 +29,7 @@ static void _dmserver_cconn_disconnect(dmserver_pt dmserver, size_t dmthindex, s
 // Internal - Dmserver-worker main/sub threads + helpers:
 static void * _dmserver_worker_main(void * args);
 static void * _dmserver_worker_sub(void * args);
-static bool _dmserver_helper_sslhandshake(SSL * temp_cssl, int * temp_cfd);
+static bool _dmserver_helper_sslhandshake(struct dmserver_cliconn * c);
 static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex);
 static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
 static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
@@ -129,6 +131,7 @@ bool dmserver_open(dmserver_pt dmserver){
     if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
 
     // Initialize server connection data and ssl:
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "DMServer opening...");
     if (!_dmserver_sconn_init(&dmserver->sconn)) return false;
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "dmserver_open() - server connection data initialized.");
 
@@ -167,6 +170,7 @@ bool dmserver_close(dmserver_pt dmserver){
     if ((dmserver->sstate != DMSERVER_STATE_OPENED) && (dmserver->sstate != DMSERVER_STATE_STOPPED)) return false;
 
     // Close (in order) all connection data within the server:
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "DMServer closing...");
     _dmserver_sconn_deinit(&dmserver->sconn);
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "dmserver_close() - server connection data deinitialized.");
 
@@ -196,6 +200,7 @@ bool dmserver_run(dmserver_pt dmserver){
     if ((dmserver->sstate != DMSERVER_STATE_OPENED) && (dmserver->sstate != DMSERVER_STATE_STOPPED)) return false;
 
     // Previous state update (thread run depends on it):
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "DMServer starting run...");
     dmserver->sstate = DMSERVER_STATE_RUNNING;
 
     // Subordinate threads launch (args freed inside the subordinate thread):
@@ -235,7 +240,9 @@ bool dmserver_stop(dmserver_pt dmserver){
     if (!dmserver) return false;
     if (dmserver->sstate != DMSERVER_STATE_RUNNING) return false;
 
+
     // Previous state update (thread run depends on it):
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "DMServer stopping...");
     dmserver->sstate = DMSERVER_STATE_STOPPING;
 
     // Force threads to finish by signaling wthctl and block-wait:
@@ -285,7 +292,6 @@ bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata){
         strncpy(dmclient->cwbuffer, bcdata, DEFAULT_CCONN_WBUFFERLEN - 1);
         dmclient->cwbuffer[DEFAULT_CCONN_WBUFFERLEN - 1] = '\0';
         dmclient->cwlen = strlen(dmclient->cwbuffer);
-        dmclient->cwoff = 0;
 
         pthread_mutex_unlock(&dmclient->cwlock);
 
@@ -329,7 +335,6 @@ bool dmserver_unicast(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc, const c
     strncpy(dmclient->cwbuffer, ucdata, DEFAULT_CCONN_WBUFFERLEN - 1);
     dmclient->cwbuffer[DEFAULT_CCONN_WBUFFERLEN - 1] = '\0';
     dmclient->cwlen = strlen(dmclient->cwbuffer);
-    dmclient->cwoff = 0;
 
     pthread_mutex_unlock(&dmclient->cwlock);
 
@@ -484,7 +489,7 @@ bool dmserver_conf_tlsenable(dmserver_pt dmserver, bool tlsv13en){
     @retval true: Callback assignation succeeded.
     @retval false: Callback assignation failed.
 */
-bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(void *)){
+bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(dmserver_cliconn_pt)){
     // References & state check:
     if (!dmserver || !on_client_connect) return false;
     if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
@@ -504,7 +509,7 @@ bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_conne
     @retval true: Callback assignation succeeded.
     @retval false: Callback assignation failed.
 */
-bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_disconnect)(void *)){
+bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_disconnect)(dmserver_cliconn_pt)){
     // References & state check:
     if (!dmserver || !on_client_disconnect) return false;
     if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
@@ -524,7 +529,7 @@ bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_di
     @retval true: Callback assignation succeeded.
     @retval false: Callback assignation failed.
 */
-bool dmserver_setcb_onclienttimeout(dmserver_pt dmserver, void (*on_client_timeout)(void *)){
+bool dmserver_setcb_onclienttimeout(dmserver_pt dmserver, void (*on_client_timeout)(dmserver_cliconn_pt)){
     // References & state check:
     if (!dmserver || !on_client_timeout) return false;
     if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
@@ -544,7 +549,7 @@ bool dmserver_setcb_onclienttimeout(dmserver_pt dmserver, void (*on_client_timeo
     @retval true: Callback assignation succeeded.
     @retval false: Callback assignation failed.
 */
-bool dmserver_setcb_onclientrcv(dmserver_pt dmserver, void (*on_client_rcv)(void *)){
+bool dmserver_setcb_onclientrcv(dmserver_pt dmserver, void (*on_client_rcv)(dmserver_cliconn_pt)){
     // References & state check:
     if (!dmserver || !on_client_rcv) return false;
     if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
@@ -564,7 +569,7 @@ bool dmserver_setcb_onclientrcv(dmserver_pt dmserver, void (*on_client_rcv)(void
     @retval true: Callback assignation succeeded.
     @retval false: Callback assignation failed.
 */
-bool dmserver_setcb_onclientsnd(dmserver_pt dmserver, void (*on_client_snd)(void *)){
+bool dmserver_setcb_onclientsnd(dmserver_pt dmserver, void (*on_client_snd)(dmserver_cliconn_pt)){
     // References & state check:
     if (!dmserver || !on_client_snd) return false;
     if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
@@ -863,10 +868,10 @@ static bool _dmserver_cconn_reset(struct dmserver_cliconn * c){
 
     // Reset read/write buffers:
     memset(c->crbuffer, 0, DEFAULT_CCONN_RBUFFERLEN);
-    c->crlen = c->croff = 0;
+    c->crlen = 0;
 
     memset(c->cwbuffer, '\0', DEFAULT_CCONN_WBUFFERLEN);
-    c->cwlen = c->cwoff = 0;
+    c->cwlen = 0;
 
     // Reset state:
     c->cstate = DMSERVER_CLIENT_STANDBY;
@@ -901,7 +906,7 @@ static bool _dmserver_cconn_checktimeout(struct dmserver_cliconn * c, time_t tim
 static void _dmserver_cconn_disconnect(dmserver_pt dmserver, size_t dmthindex, struct dmserver_cliconn * c){
     // Reference & state check:
     if (!c || !dmserver) return;
-    if (c->cstate != DMSERVER_CLIENT_ESTABLISHED) return;
+    if ((c->cstate != DMSERVER_CLIENT_ESTABLISHED) && (c->cstate != DMSERVER_CLIENT_ESTABLISHING)) return;
 
     // Client socket file descriptor deletion from epoll:
     epoll_ctl(dmserver->sworker.wsubepfd[dmthindex], EPOLL_CTL_DEL, c->cfd, NULL);
@@ -912,6 +917,9 @@ static void _dmserver_cconn_disconnect(dmserver_pt dmserver, size_t dmthindex, s
 
     // Client state to closed:
     c->cstate = DMSERVER_CLIENT_CLOSED;
+
+    // Log:
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_cconn_disconnect() - Closed client %d.", c->cfd);
 
     // Client structure reset:
     _dmserver_cconn_reset(c);
@@ -938,65 +946,92 @@ static void * _dmserver_worker_main(void * args){
     // Prepare the main thread epoll to optimize CPU usage:
     if (epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_ADD, dmserver->sconn.sfd, &(struct epoll_event){.events=EPOLLIN, .data.fd=dmserver->sconn.sfd}) < 0) 
         return NULL;
-    struct epoll_event ev;
+    struct epoll_event evs[SOMAXCONN];
     
     while (dmserver->sstate == DMSERVER_STATE_RUNNING){
         // Epoll wait for connection (or forced wakeup via wthctl):
-        int nfds = epoll_wait(dmserver->sworker.wmainepfd, &ev, 1, 2000);
+        int nfds = epoll_wait(dmserver->sworker.wmainepfd, evs, SOMAXCONN, 4000);
         if (nfds < 0  && (errno == EINTR)) continue;
 
-        // Accept connection:
-        int temp_cfd;
-        struct sockaddr_storage temp_caddr;
-        socklen_t temp_caddrlen = sizeof(temp_caddr);
-        temp_cfd = accept4(dmserver->sconn.sfd, (struct sockaddr *)&temp_caddr, &temp_caddrlen, SOCK_NONBLOCK);
-        if (temp_cfd < 0) continue;
-        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
+        for (size_t i = 0; i < nfds; i++){
+            // If the event is triggered by the server socket, allow tcp connection:
+            if (evs[i].data.fd == dmserver->sconn.sfd){
+                // Accept TCP connection:
+                int temp_cfd;
+                struct sockaddr_storage temp_caddr;
+                socklen_t temp_caddrlen = sizeof(temp_caddr);
+                temp_cfd = accept4(dmserver->sconn.sfd, (struct sockaddr *)&temp_caddr, &temp_caddrlen, SOCK_NONBLOCK);
+                if (temp_cfd < 0) continue;
+                dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
 
-        // Create ssl session:
-        SSL * temp_cssl = NULL;
-        if (dmserver->sconn.sssl_enable){
-            temp_cssl = SSL_new(dmserver->sconn.sssl_ctx);
-            if (!temp_cssl) {close(temp_cfd); continue;}
-            SSL_set_fd(temp_cssl, temp_cfd);
+                // Distribute client to the less populated subordinate thread and the next free slot (just find location):
+                size_t temp_thindex = 0;
+                for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
+                    if (dmserver->sworker.wccount[i] < dmserver->sworker.wccount[temp_thindex]) temp_thindex = i;
+                }
+                size_t temp_cindex = 0;
+                for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
+                    if (dmserver->sworker.wcclis[temp_thindex][i].cstate == DMSERVER_CLIENT_STANDBY) {temp_cindex = i; break;}
+                }
+                struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[temp_thindex][temp_cindex];
+                dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d assigned to point (%lu, %lu).", temp_cfd, temp_thindex, temp_cindex);
 
-            // Note: Semi-blocking handshake. TODO: Optimize multiple handshakes simultaneously with epoll.
-            if(!_dmserver_helper_sslhandshake(temp_cssl, &temp_cfd)) continue;
-            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TLS ok.", temp_cfd);
-        }
+                // Set the connection data into the selected client slot & add fd to the subthread epoll:
+                if(!_dmserver_cconn_set(dmclient, &(dmserver_cliloc_t){.th_pos=temp_thindex, .wc_pos=temp_cindex}, temp_cfd, &temp_caddr, NULL)) {
+                    close(temp_cfd); 
+                    continue;
+                }
 
-        // Distribute client to the less populated subordinate thread and the next free slot:
-        size_t temp_thindex = 0;
-        for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
-            if (dmserver->sworker.wccount[i] < dmserver->sworker.wccount[temp_thindex]) temp_thindex = i;
-        }
-        size_t temp_cindex = 0;
-        for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
-            if (dmserver->sworker.wcclis[temp_thindex][i].cstate == DMSERVER_CLIENT_STANDBY) {temp_cindex = i; break;}
-        }
-        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d assigned to point (%lu, %lu).", temp_cfd, temp_thindex, temp_cindex);
+                // Add the connected client to the subordinate thread:
+                if (dmserver->sconn.sssl_enable) {
+                    // TCP + TLS(pending):
+                    dmclient->cstate = DMSERVER_CLIENT_ESTABLISHING;
 
-        // Set the connection data into the selected client slot & add fd to the subthread epoll:
-        if(!_dmserver_cconn_set(&dmserver->sworker.wcclis[temp_thindex][temp_cindex], &(dmserver_cliloc_t){.th_pos=temp_thindex, .wc_pos=temp_cindex}, temp_cfd, &temp_caddr, temp_cssl)) {
-            if (dmserver->sconn.sssl_enable) {SSL_shutdown(temp_cssl); SSL_free(temp_cssl);}
-            printf("AAAAAAA\n");
-            close(temp_cfd); 
-            continue;
-        }
-        if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, temp_cfd, &(struct epoll_event){.events=EPOLLIN, .data.ptr=&dmserver->sworker.wcclis[temp_thindex][temp_cindex]}) < 0) {
-            _dmserver_cconn_reset(&dmserver->sworker.wcclis[temp_thindex][temp_cindex]);
-            if (dmserver->sconn.sssl_enable) {SSL_shutdown(temp_cssl); SSL_free(temp_cssl);}
-            close(temp_cfd);
-            printf("BBBBBBBB\n");
-            continue;
-        }
-        dmserver->sworker.wccount[temp_thindex]++;
+                    dmclient->cssl = SSL_new(dmserver->sconn.sssl_ctx);
+                    if (!dmclient->cssl) {
+                        epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_DEL, dmclient->cfd, NULL);
+                        close(dmclient->cfd);
+                        _dmserver_cconn_reset(dmclient);
+                        continue;    
+                    }
 
-        char cip_str[INET6_ADDRSTRLEN];
-        const void * addr = (dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr_family == AF_INET) ? (void*)&dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr.c4.sin_addr : (void*)&dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr.c6.sin6_addr;
-        inet_ntop(dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr_family, addr, cip_str, sizeof(cip_str));
-        int cport_num = (dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr_family == AF_INET) ? ntohs(dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr.c4.sin_port) : ntohs(dmserver->sworker.wcclis[temp_thindex][temp_cindex].caddr.c6.sin6_port);
-        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", dmserver->sworker.wcclis[temp_thindex][temp_cindex].cfd, cip_str, cport_num);
+                    // Create BIO for the socket (non-blocking I/O)
+                    dmclient->cbio = BIO_new_socket(dmclient->cfd, BIO_NOCLOSE);
+                    if (!dmclient->cbio) {
+                        SSL_free(dmclient->cssl);
+                        epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_DEL, dmclient->cfd, NULL);
+                        close(dmclient->cfd);
+                        _dmserver_cconn_reset(dmclient);
+                        continue;
+                    }
+
+                    // Assign BIO to SSL object for both read and write operations
+                    SSL_set_bio(dmclient->cssl, dmclient->cbio, dmclient->cbio);
+
+                    if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN | EPOLLOUT, .data.ptr=dmclient}) < 0){
+                        close(dmclient->cfd);
+                        _dmserver_cconn_reset(dmclient); 
+                        continue;
+                    }
+
+                } else {
+                    // Only tcp:
+                    if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN, .data.ptr=dmclient}) < 0) {
+                        close(dmclient->cfd);
+                        _dmserver_cconn_reset(dmclient);
+                        continue;
+                    }
+
+                    // Log message:
+                    char cip_str[INET6_ADDRSTRLEN];
+                    const void * addr = (dmclient->caddr_family == AF_INET) ? (void*)&dmclient->caddr.c4.sin_addr : (void*)&dmclient->caddr.c6.sin6_addr;
+                    inet_ntop(dmclient->caddr_family, addr, cip_str, sizeof(cip_str));
+                    int cport_num = (dmclient->caddr_family == AF_INET) ? ntohs(dmclient->caddr.c4.sin_port) : ntohs(dmclient->caddr.c6.sin6_port);
+                    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", dmclient->cfd, cip_str, cport_num);
+                }
+                dmserver->sworker.wccount[temp_thindex]++;
+            }
+        }
     }
 
     // Delete the server socket file descriptor from main thread epoll:
@@ -1025,15 +1060,28 @@ static void * _dmserver_worker_sub(void * args){
 
     while (dmserver->sstate == DMSERVER_STATE_RUNNING){
         // Epoll wait for events (or forced wakeup via wthctl):
-        int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, DEFAULT_WORKER_CLISPERSTH, 6000);
+        int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, DEFAULT_WORKER_CLISPERSTH, 4000);
         if (nfds == 0) {for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){_dmserver_helper_cctimeout(dmserver, &dmserver->sworker.wcclis[dmthindex][i], dmthindex); continue;}}
         if ((nfds < 0)  || (errno == EINTR)) {continue;}
-        
 
         for (size_t i = 0; i < nfds; i++){
             // Obtain the pointer and check the state of the client that generated the event:
             struct dmserver_cliconn * dmclient = evs[i].data.ptr;
-            if (!dmclient || (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED)) continue;
+            if (!dmclient) continue;
+
+            // Connection stages check:
+            if (dmclient->cstate == DMSERVER_CLIENT_ESTABLISHING){
+                if(!_dmserver_helper_sslhandshake(dmclient)) continue;
+                dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TLS ok.", dmclient->cfd);
+                
+                // Log message:
+                char cip_str[INET6_ADDRSTRLEN];
+                const void * addr = (dmclient->caddr_family == AF_INET) ? (void*)&dmclient->caddr.c4.sin_addr : (void*)&dmclient->caddr.c6.sin6_addr;
+                inet_ntop(dmclient->caddr_family, addr, cip_str, sizeof(cip_str));
+                int cport_num = (dmclient->caddr_family == AF_INET) ? ntohs(dmclient->caddr.c4.sin_port) : ntohs(dmclient->caddr.c6.sin6_port);
+                dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", dmclient->cfd, cip_str, cport_num);
+            }
+            if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) continue;
 
             // Handle read:
             if(!_dmserver_helper_ccread(dmserver, dmclient, dmthindex, evs, i)) continue;
@@ -1051,6 +1099,9 @@ static void * _dmserver_worker_sub(void * args){
     return NULL;
 }
 
+
+// ======== Dmserver-worker helpers:
+
 /*
     @brief Helper function that implements the ssl handshake (in pseudo blocking mode - 20 attempts).
 
@@ -1060,49 +1111,37 @@ static void * _dmserver_worker_sub(void * args){
     @retval false: SSL Handshake failed.
     @retval true: SSL Handshake succeeded.
 */
-static bool _dmserver_helper_sslhandshake(SSL * temp_cssl, int * temp_cfd){
+static bool _dmserver_helper_sslhandshake(struct dmserver_cliconn * c){
     // References check:
-    if (!temp_cssl || !temp_cfd) return false;
+    if (!c) return false;
 
     // SSL Handshake process:
-    int ssl_code;
-    int attempts = 0;
-    int max_attempts = 20;
-    bool ssl_fatalerr = false;
+    int ssl_code = SSL_accept(c->cssl);
+    int err = SSL_get_error(c->cssl, ssl_code);
 
-    do {
-        ssl_code = SSL_accept(temp_cssl);
-        int err = SSL_get_error(temp_cssl, ssl_code);
+    switch(err){
+        case SSL_ERROR_NONE:
+            // Hanshake completed successfuly:
+            c->cstate = DMSERVER_CLIENT_ESTABLISHED;
+            return true;
 
-        switch(err){
-            case SSL_ERROR_NONE:
-            case SSL_ERROR_WANT_READ:
-            case SSL_ERROR_WANT_WRITE:
-                // Handshake in progress:
-                break;
+        case SSL_ERROR_WANT_READ:
+        case SSL_ERROR_WANT_WRITE:
+            // Handshake in progress:
+            return false;
 
-            case SSL_ERROR_ZERO_RETURN:
-            case SSL_ERROR_SSL:
-            case SSL_ERROR_SYSCALL:
-            default:
-                // Fatal/Unknown error detected:
-                ssl_fatalerr = true;
-                SSL_shutdown(temp_cssl); 
-                SSL_free(temp_cssl); 
-                close(*temp_cfd); 
-                break;
-        }
-
-        // If fatal error ocurred exits the loop:
-        if (ssl_fatalerr) break;
-
-        // Wait 50 ms to avoid CPU usage with slow clients: 
-        usleep(50 * 1000);  
-        
-    } while ((ssl_code <= 0) && (attempts++ < max_attempts));
-    if (ssl_code <= 0) return false;
-    
-    return true;
+        case SSL_ERROR_ZERO_RETURN:
+        case SSL_ERROR_SSL:
+        case SSL_ERROR_SYSCALL:
+        default:
+            // Fatal/Unknown error detected, clean client and return:
+            SSL_shutdown(c->cssl);
+            SSL_free(c->cssl);
+            close(c->cfd);
+            _dmserver_cconn_reset(c);
+            return false;
+        }      
+    return false;
 }
 
 /*
@@ -1152,18 +1191,18 @@ static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_clicon
         // Read lock of client:
         pthread_mutex_lock(&dmclient->crlock);
 
-        // Read bytes from clients (encrypted/decrypted optional):
+        // Read bytes from clients (encrypted/decrypted optional) to client read buffer:
         int rb = 0;
         int rb_err = 0;
         if (dmserver->sconn.sssl_enable){
-            rb = SSL_read(dmclient->cssl, dmclient->crbuffer + dmclient->croff, DEFAULT_CCONN_RBUFFERLEN - dmclient->croff);
+            rb = SSL_read(dmclient->cssl, dmclient->crbuffer, DEFAULT_CCONN_RBUFFERLEN-1);
             rb_err = SSL_get_error(dmclient->cssl, rb);
         } else {
-            rb = read(dmclient->cfd, dmclient->crbuffer, DEFAULT_CCONN_RBUFFERLEN);
+            rb = read(dmclient->cfd, dmclient->crbuffer, DEFAULT_CCONN_RBUFFERLEN-1);
             rb_err = errno;
         }
+        dmclient->crbuffer[DEFAULT_CCONN_RBUFFERLEN - 1] = '\0';
 
-                
         if (rb > 0){
             // Data reception case:
             dmclient->crlen += rb;
@@ -1176,7 +1215,6 @@ static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_clicon
             if (dmserver->scallback.on_client_rcv) dmserver->scallback.on_client_rcv(dmclient);
             memset(dmclient->crbuffer, 0, DEFAULT_CCONN_RBUFFERLEN);
 
-            
         } else if ((rb == 0) || ((rb_err == SSL_ERROR_ZERO_RETURN) && dmserver->sconn.sssl_enable)){
             // Client disconnect case:
             dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d disconnected.\n", dmclient->cfd); 
@@ -1224,23 +1262,19 @@ static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_clico
         int wb = 0;
         int wb_err = 0;
         if (dmserver->sconn.sssl_enable){
-            wb = SSL_write(dmclient->cssl, dmclient->cwbuffer + dmclient->cwoff, dmclient->cwlen - dmclient->cwoff);
+            wb = SSL_write(dmclient->cssl, dmclient->cwbuffer, dmclient->cwlen);
             wb_err = SSL_get_error(dmclient->cssl, wb);
         } else {
-            wb = write(dmclient->cfd, dmclient->cwbuffer + dmclient->cwoff, dmclient->cwlen - dmclient->cwoff);
+            wb = write(dmclient->cfd, dmclient->cwbuffer, dmclient->cwlen);
             wb_err = errno;
         }
 
         if (wb > 0){
             // Data sent case:
-            dmclient->cwoff += wb;;
+            dmclient->cwlen = wb;
+            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "Write of %d bytes from client %d.\n", wb, dmclient->cfd);
 
-            // All data sent case:
-            if (dmclient->cwoff != dmclient->cwlen) {pthread_mutex_unlock(&dmclient->cwlock); return true;}
-            memset(dmclient->cwbuffer, 0, DEFAULT_CCONN_WBUFFERLEN);
-            dmclient->cwoff = 0;
-            dmclient->cwlen = 0;
-
+            // Disable output events:
             if (epoll_ctl(dmserver->sworker.wsubepfd[dmthindex], EPOLL_CTL_MOD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN, .data.ptr=dmclient}) < 0){
                 // All data send error case:
                 _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
@@ -1248,11 +1282,14 @@ static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_clico
                 return false;
             }
 
-            // Write data user callback:
+            // Write data user callback and reset:
             if (dmserver->scallback.on_client_snd) dmserver->scallback.on_client_snd(dmclient);
+            memset(dmclient->cwbuffer, 0, DEFAULT_CCONN_WBUFFERLEN);
+            dmclient->cwlen = 0;
              
         } else if ((((wb_err != SSL_ERROR_WANT_READ) && (wb_err != SSL_ERROR_WANT_WRITE)) && dmserver->sconn.sssl_enable) || (((wb_err != EAGAIN) && (wb_err != EWOULDBLOCK) && (wb_err != EINTR)) && !dmserver->sconn.sssl_enable)) {
             // Comunication error case:
+            dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d com. failed, forced disconnected.\n", dmclient->cfd); 
             _dmserver_cconn_disconnect(dmserver, dmthindex, dmclient);
             pthread_mutex_unlock(&dmclient->cwlock); 
             return false;

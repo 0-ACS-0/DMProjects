@@ -4,10 +4,9 @@
 dmserver_pt serv;
 
 // Echo function that unicast to the same client the data read from himself:
-void echo_fn(void * args){
-    // Reference check & cast:
-    if (!args) return;
-    struct dmserver_cliconn * cli = (struct dmserver_cliconn *)args;
+void echo_fn(dmserver_cliconn_pt cli){
+    // Reference check:
+    if (!cli) return;
 
     // Broadcast received data to all clients:
     dmserver_unicast(serv, &cli->cloc, cli->crbuffer);
@@ -26,7 +25,7 @@ int main(int argc, char ** argv){
 
     // Server connection data configuration:
     if (!dmserver_conf_port(serv, 2020)) exit(1);
-    if (!dmserver_conf_safamily(serv, AF_INET6)) exit(1);
+    if (!dmserver_conf_safamily(serv, AF_INET)) exit(1);
     if (!dmserver_conf_ipv6only(serv, false)) exit(1);
     if (!dmserver_conf_tlsenable(serv, true)) exit(1);
     if (!dmserver_conf_certpath(serv, "./certs/server.crt")) exit(1);
