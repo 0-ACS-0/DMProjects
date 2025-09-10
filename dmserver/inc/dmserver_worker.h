@@ -16,6 +16,12 @@
 #define DEFAULT_WORKER_CLITIMEOUT 120
 
 /* ---- Data structures ------------------------------------------- */
+// Worker suthreads argument struct:
+struct dmserver_subthreads_args{
+    void * dmserver;
+    size_t subthindex;
+};
+
 // Workers data structure for dmserver:
 struct dmserver_worker{
     // Threads (workers) data:
@@ -29,6 +35,9 @@ struct dmserver_worker{
     size_t wccount[DEFAULT_WORKER_SUBTHREADS];
     time_t wctimeout;
 };
+
+/* ---- Data types ------------------------------------------------ */
+typedef struct dmserver_subthreads_args dmserver_subthargs_t;
 
 /* ---- INTERNAL - Static functions prototypes -------------------- */
 void * _dmserver_worker_main(void * args);

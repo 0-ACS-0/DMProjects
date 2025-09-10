@@ -3,7 +3,7 @@
 # Variables de entorno             #
 # -------------------------------- #
 CC=gcc
-CFLAGS_TEST="-g -Wall -O0 -lssl -lcrypto -lpthread"
+CFLAGS_TEST="-g -Wall -O2 -lssl -lcrypto -lpthread"
 CFLAGS_LIB="-std=c99 -D_POSIX_C_SOURCE=200809L -shared -fPIC -Wall -Werror -O2 -lpthread -lssl -lcrypto"
 
 LOGS_DIR="./logs"

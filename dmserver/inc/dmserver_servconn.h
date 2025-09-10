@@ -39,6 +39,7 @@ struct dmserver_servconn{
 };
 
 /* ---- INTERNAL - Static functions prototypes -------------------- */
+// Server connection:
 bool _dmserver_sconn_init(struct dmserver_servconn * s);
 bool _dmserver_sconn_deinit(struct dmserver_servconn * s);
 bool _dmserver_sconn_sslinit(struct dmserver_servconn * s);

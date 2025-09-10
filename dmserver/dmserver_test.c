@@ -9,7 +9,7 @@ void echo_fn(dmserver_cliconn_pt cli){
     if (!cli) return;
 
     // Broadcast received data to all clients:
-    dmserver_unicast(serv, &cli->cloc, cli->crbuffer);
+    dmserver_broadcast(serv, &cli->cloc, cli->crbuffer);
 }
 
 // MAIN:
@@ -49,7 +49,7 @@ int main(int argc, char ** argv){
 
         // Broadcast command issued:
         if (!strcmp(c, "broadcast")){
-            dmserver_broadcast(serv, "Broadcast!\n");
+            dmserver_broadcast(serv, NULL, "Broadcast!\n");
         }
 
         // Unicast command issued:

@@ -6,15 +6,9 @@
 #include "../inc/dmserver_worker.h"
 #include "../inc/dmserver.h"
 
-/* ---- Hidden (internal) data structures ------------------------- */
-typedef struct dmserver_subthreads_args{
-    dmserver_pt dmserver;
-    size_t subthindex;
-}dmserver_subthargs_t;
-
 /* ---- Helper functions implementation prototypes ---------------- */
 static void _dmserver_helper_smanager(dmserver_pt dmserver);
-static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, size_t thindex, struct dmserver_cliconn * c);
+static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, struct dmserver_cliconn * c);
 static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cliconn * dmclient);
 static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
 static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
@@ -82,8 +76,6 @@ void * _dmserver_worker_sub(void * args){
     while (dmserver->sstate == DMSERVER_STATE_RUNNING){
         // Epoll wait for events:
         int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, DEFAULT_WORKER_CLISPERSTH, 4000);
-        
-        //if (nfds == 0) {for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){_dmserver_helper_cctimeout(dmserver, &dmserver->sworker.wcclis[dmthindex][i], dmthindex); continue;}}
         if ((nfds < 0)  || (errno == EINTR)) {continue;}
 
         for (size_t i = 0; i < nfds; i++){
@@ -92,7 +84,7 @@ void * _dmserver_worker_sub(void * args){
             if (!dmclient || ((dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) && (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHING))) continue;
 
             // Connection stages check:
-            if(!_dmserver_helper_csslhandshake(dmserver, dmthindex, dmclient)) continue;
+            if(!_dmserver_helper_csslhandshake(dmserver, dmclient)) continue;
 
             // Handle read:
             if(!_dmserver_helper_ccread(dmserver, dmclient, dmthindex, evs, i)) continue;
@@ -167,7 +159,7 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
     if (temp_cfd < 0) return;
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
 
-    // Distribute client to the less populated subordinate thread and the next free slot (just find location):
+    // Distribute client to the less populated subordinate thread and the next free slot (just find the location in the client matrix):
     size_t temp_thindex = 0;
     for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
         if (dmserver->sworker.wccount[i] < dmserver->sworker.wccount[temp_thindex]) temp_thindex = i;
@@ -187,9 +179,10 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
 
     // Add the connected client to the subordinate thread:
     if (dmserver->sconn.sssl_enable) {
-        // TCP + TLS(pending):
+        // TCP + TLS(establishing):
         dmclient->cstate = DMSERVER_CLIENT_ESTABLISHING;
 
+        // SSL object:
         dmclient->cssl = SSL_new(dmserver->sconn.sssl_ctx);
         if (!dmclient->cssl) {
             epoll_ctl(dmserver->sworker.wmainepfd, EPOLL_CTL_DEL, dmclient->cfd, NULL);
@@ -198,7 +191,7 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
             return;    
         }
 
-        // Create BIO for the socket (non-blocking I/O)
+        // Create BIO for the socket (non-blocking I/O):
         dmclient->cbio = BIO_new_socket(dmclient->cfd, BIO_NOCLOSE);
         if (!dmclient->cbio) {
             SSL_free(dmclient->cssl);
@@ -208,9 +201,10 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
             return;
         }
 
-        // Assign BIO to SSL object for both read and write operations
+        // Assign BIO to SSL object for both read and write operations:
         SSL_set_bio(dmclient->cssl, dmclient->cbio, dmclient->cbio);
 
+        // Distribute the client to the subordinate thread:
         if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN | EPOLLOUT | EPOLLET, .data.ptr=dmclient}) < 0){
             close(dmclient->cfd);
             _dmserver_cconn_reset(dmclient); 
@@ -218,7 +212,10 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
         }
 
     } else {
-        // Only tcp:
+        // TCP(established):
+        dmclient->cstate = DMSERVER_CLIENT_ESTABLISHED;
+
+        // Distribute the client to the subordinate thread:
         if (epoll_ctl(dmserver->sworker.wsubepfd[temp_thindex], EPOLL_CTL_ADD, dmclient->cfd, &(struct epoll_event){.events=EPOLLIN | EPOLLET, .data.ptr=dmclient}) < 0) {
             close(dmclient->cfd);
             _dmserver_cconn_reset(dmclient);
@@ -244,10 +241,10 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
     @retval false: SSL Handshake failed.
     @retval true: SSL Handshake succeeded.
 */
-static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, size_t thindex, struct dmserver_cliconn * c){
+static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, struct dmserver_cliconn * c){
     // References check:
     if (!dmserver || !c) return false;
-    if (c->cstate != DMSERVER_CLIENT_ESTABLISHING) return true;
+    if (!dmserver->sconn.sssl_enable || (c->cstate != DMSERVER_CLIENT_ESTABLISHING)) return true;
 
     // SSL Handshake process:
     int ssl_code = SSL_accept(c->cssl);
@@ -260,7 +257,7 @@ static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, size_t thindex,
             dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TLS ok.", c->cfd);
             
             // Modification of events in client epoll fd:
-            if (epoll_ctl(dmserver->sworker.wsubepfd[thindex], EPOLL_CTL_MOD, c->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLET, .data.ptr=c}) < 0){
+            if (epoll_ctl(dmserver->sworker.wsubepfd[c->cloc.th_pos], EPOLL_CTL_MOD, c->cfd, &(struct epoll_event){.events=EPOLLIN|EPOLLET, .data.ptr=c}) < 0){
                 // EPOLL error:
                 SSL_shutdown(c->cssl);
                 SSL_free(c->cssl);

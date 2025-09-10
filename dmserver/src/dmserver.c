@@ -1,11 +1,6 @@
 /* ---- Library --------------------------------------------------- */
 #include "../inc/dmserver.h"
 
-/* ---- Hidden (internal) data structures ------------------------- */
-typedef struct dmserver_subthreads_args{
-    dmserver_pt dmserver;
-    size_t subthindex;
-}dmserver_subthargs_t;
 
 
 
@@ -255,7 +250,7 @@ bool dmserver_stop(dmserver_pt dmserver){
     @retval false: Broadcast failed.
     @retval true: Broadcast succeeded.
 */
-bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata){
+bool dmserver_broadcast(dmserver_pt dmserver, dmserver_cliloc_pt bexclude, const char * bcdata){
     // References & state check:
     if (!dmserver || !bcdata) return false;
     if (dmserver->sstate != DMSERVER_STATE_RUNNING) return false;
@@ -264,8 +259,10 @@ bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata){
     // Broadcast write to every connected client:
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Starting broadcast...");
     for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){for (size_t j = 0; j < DEFAULT_WORKER_CLISPERSTH; j++){
+        // Check client broadcast condition:
         struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[i][j];
         if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) continue;
+        if (bexclude && (dmclient->cloc.th_pos == bexclude->th_pos) && (dmclient->cloc.wc_pos == bexclude->wc_pos)) continue;
 
         // Copy broadcast data to the client write buffer:
         pthread_mutex_lock(&dmclient->cwlock);
@@ -354,8 +351,6 @@ bool dmserver_disconnect(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc){
 
     // Client state to closed:
     cli->cstate = DMSERVER_CLIENT_CLOSED;
-
-    // Log:
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Disconnected client %d.\n", cli->cfd);
 
     // Client structure reset:

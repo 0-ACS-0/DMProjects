@@ -94,7 +94,7 @@ bool dmserver_stop(dmserver_pt dmserver);
 bool dmserver_close(dmserver_pt dmserver);
 
 // Broadcast / Unicast / Disconnect:
-bool dmserver_broadcast(dmserver_pt dmserver, const char * bcdata);
+bool dmserver_broadcast(dmserver_pt dmserver, dmserver_cliloc_pt bexclude, const char * bcdata);
 bool dmserver_unicast(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc, const char * ucdata);
 bool dmserver_disconnect(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc);
 
