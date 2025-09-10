@@ -1,5 +1,5 @@
 #include "dmlogger.h"
-#include <unistd.h>
+
 
 int main(int argc, char ** argv){
     dmlogger_pt logger;

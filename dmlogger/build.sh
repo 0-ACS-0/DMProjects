@@ -37,6 +37,7 @@ elif [ "$1" == "lib" ]; then
     echo
     echo "[BUILD-LIB]: Compiling library..."
     if $CC $CFLAGS_LIB $LIB_SRC -o $LIB_PROG; then
+        cp $LIB_PROG ./pywrapper
         mv $LIB_PROG ./lib
         cp $INC ./lib
         echo "[BUILD-LIB]: Library compiled!."
@@ -48,7 +49,7 @@ elif [ "$1" == "lib" ]; then
 elif [ "$1" == "clean" ]; then
     echo
     echo "[BUILD-CLEAN]: Cleaning workspace..."
-    rm -f ./$TEST_PROG ./lib/* ./logs/*
+    rm -f ./$TEST_PROG ./pywrapper/$LIB_PROG ./lib/* ./logs/*
     echo "[BUILD-CLEAN]: Workspace completly clean!"
     echo
 
