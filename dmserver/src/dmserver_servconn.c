@@ -4,7 +4,6 @@
 
 /* ---- Library --------------------------------------------------- */
 #include "../inc/dmserver_servconn.h"
-#include <string.h>
 
 /* ---- INTERNAL - Functions implementation ----------------------- */
 // ======== General use:

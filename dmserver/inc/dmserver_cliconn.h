@@ -47,12 +47,14 @@ struct dmserver_cliconn{
     SSL * cssl;
     BIO * cbio;
 
-    // Read/Write buffers of a clientS:
-    char crbuffer[DEFAULT_CCONN_RBUFFERLEN];
+    // Read/Write buffers of a clientS:DEFAULT_CCONN_RBUFFERLEN]
+    size_t crbuffer_size;
+    char * crbuffer;
     pthread_mutex_t crlock;
     size_t crlen;
 
-    char cwbuffer[DEFAULT_CCONN_WBUFFERLEN];
+    size_t cwbuffer_size;
+    char * cwbuffer;
     pthread_mutex_t cwlock;
     size_t cwlen;
 
@@ -63,6 +65,13 @@ struct dmserver_cliconn{
     time_t clastt;
 };
 
+// Client buffers length configuration:
+struct dmserver_cliconn_conf{
+    size_t cread_buffer_size;
+    size_t cwrite_buffer_size;
+};
+
+
 /* ---- Data types ------------------------------------------------ */
 // DMServer client & client location datatype:
 typedef struct dmserver_cliconn dmserver_cliconn_t;
@@ -71,11 +80,23 @@ typedef dmserver_cliconn_t * dmserver_cliconn_pt;
 typedef struct dmserver_cliloc dmserver_cliloc_t;
 typedef dmserver_cliloc_t * dmserver_cliloc_pt;
 
+// DMServer client buffers configuration structure:
+typedef struct dmserver_cliconn_conf dmserver_cliconn_conf_t;
+typedef dmserver_cliconn_conf_t * dmserver_cliconn_conf_pt;
+
 /* ---- INTERNAL - Static functions prototypes -------------------- */
-bool _dmserver_cconn_init(struct dmserver_cliconn * c);
-bool _dmserver_cconn_deinit(struct dmserver_cliconn * c);
-bool _dmserver_cconn_set(struct dmserver_cliconn * c, dmserver_cliloc_pt cloc, int cfd, struct sockaddr_storage * caddr, SSL * cssl);
-bool _dmserver_cconn_reset(struct dmserver_cliconn * c);
-bool _dmserver_cconn_checktimeout(struct dmserver_cliconn * c, time_t timeout_sec);
+// Client connection:
+bool _dmserver_cconn_init(dmserver_cliconn_pt c);
+bool _dmserver_cconn_deinit(dmserver_cliconn_pt c);
+bool _dmserver_cconn_set(dmserver_cliconn_pt c, dmserver_cliloc_pt cloc, int cfd, struct sockaddr_storage * caddr, SSL * cssl);
+bool _dmserver_cconn_reset(dmserver_cliconn_pt c);
+bool _dmserver_cconn_checktimeout(dmserver_cliconn_pt c, time_t timeout_sec);
+
+// Client connection configuration:
+bool __dmserver_cconn_buf_alloc(dmserver_cliconn_pt c);
+bool __dmserver_cconn_buf_dealloc(dmserver_cliconn_pt c);
+void __dmserver_cconn_set_defaults(dmserver_cliconn_pt c);
+void __dmserver_cconn_set_creadbuffer(dmserver_cliconn_pt c, size_t crbuf);
+void __dmserver_cconn_set_cwritebuffer(dmserver_cliconn_pt c, size_t cwbuf);
 
 #endif

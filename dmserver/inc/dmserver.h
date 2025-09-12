@@ -75,6 +75,7 @@ void dmserver_deinit(dmserver_pt * dmserver);
 // Configuration - General:
 bool dmserver_conf_sconn(dmserver_pt dmserver, dmserver_servconn_conf_pt sconn_conf);
 bool dmserver_conf_worker(dmserver_pt dmserver, dmserver_worker_conf_pt worker_conf);
+bool dmserver_conf_cconn(dmserver_pt dmserver, dmserver_cliconn_conf_pt cconn_conf);
 
 // Configuration - Callbacks:
 bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(dmserver_cliconn_pt));

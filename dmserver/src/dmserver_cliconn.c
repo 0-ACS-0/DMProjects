@@ -5,9 +5,13 @@
 /* ---- Library --------------------------------------------------- */
 #include "../inc/dmserver_cliconn.h"
 
+
 /* ---- INTERNAL - Functions implementation ----------------------- */
+// ======== General use:
 /*
     @brief Function to initialize a client connection slot.
+    @note Because this function will initialize completly a client slot, will initialize it with
+    defaults buffers size.
 
     @param struct dmserver_cliconn *c: Reference to client slot of dmserver-worker.
 
@@ -23,9 +27,14 @@ bool _dmserver_cconn_init(struct dmserver_cliconn * c){
     c->cfd = -1;
     c->caddr_family = AF_UNSPEC;
 
+    // Initialize read/write buffers:
+    __dmserver_cconn_set_defaults(c);
+    if(!__dmserver_cconn_buf_alloc(c)) return false; 
+
     // Initialize mutex logic:
-    if(pthread_mutex_init(&c->crlock, NULL)) return false;
+    if(pthread_mutex_init(&c->crlock, NULL)) {__dmserver_cconn_buf_dealloc(c); return false;}
     if(pthread_mutex_init(&c->cwlock, NULL)) {pthread_mutex_destroy(&c->crlock); return false;}
+
 
     // Initialize state:
     c->cstate = DMSERVER_CLIENT_STANDBY;
@@ -49,6 +58,9 @@ bool _dmserver_cconn_deinit(struct dmserver_cliconn * c){
     // Deinitialize connection data:
     c->cfd = -1;
     c->caddr_family = AF_UNSPEC;
+
+    // Deinitialize read/write buffers:
+    if(!__dmserver_cconn_buf_dealloc(c)) return false; 
 
     // Deinitialize mutex logic:
     pthread_mutex_destroy(&c->crlock);
@@ -134,10 +146,10 @@ bool _dmserver_cconn_reset(struct dmserver_cliconn * c){
     c->clastt = 0;
 
     // Reset read/write buffers:
-    memset(c->crbuffer, 0, DEFAULT_CCONN_RBUFFERLEN);
+    memset(c->crbuffer, 0, c->crbuffer_size);
     c->crlen = 0;
 
-    memset(c->cwbuffer, '\0', DEFAULT_CCONN_WBUFFERLEN);
+    memset(c->cwbuffer, '\0', c->cwbuffer_size);
     c->cwlen = 0;
 
     // Reset state:
@@ -161,4 +173,76 @@ bool _dmserver_cconn_checktimeout(struct dmserver_cliconn * c, time_t timeout_se
     // Timeout check: 
     if ((time(NULL) - c->clastt) > timeout_sec) return false;
     return true;
+}
+
+// ======== Configuration:
+/*
+    @brief Function to allocate the buffers memory of the client.
+
+    @param dmserver_cliconn_pt c: Reference to the client structure.
+
+    @retval true: Allocation succeeded.
+    @retval false: Allocation failed.
+*/
+bool __dmserver_cconn_buf_alloc(dmserver_cliconn_pt c){
+    // Reference check:
+    if (!c) return false;
+
+    // Allocate and assign memory for the read/write client buffers:
+    c->crbuffer = calloc(c->crbuffer_size, sizeof(char));
+    if (!c->crbuffer) {__dmserver_cconn_buf_dealloc(c); return false;}
+
+    c->cwbuffer = calloc(c->cwbuffer_size, sizeof(char));
+    if (!c->crbuffer) {__dmserver_cconn_buf_dealloc(c); return false;}
+    return true;
+}
+
+/*
+    @brief Function to deallocate the buffers memory of the client.
+
+    @param dmserver_cliconn_pt c: Reference to the client structure.
+
+    @retval true: Dellocation succeeded.
+    @retval false: Deallocation failed. 
+*/
+bool __dmserver_cconn_buf_dealloc(dmserver_cliconn_pt c){
+    // Reference check:
+    if (!c) return false;
+
+    // Deallocate buffers memory (if previously allocated):
+    if (c->crbuffer) free(c->crbuffer);
+    if (c->cwbuffer) free(c->cwbuffer);
+    return true;
+}
+
+/*
+    @brief Function to set the read and write client biffers to default size.
+
+    @param dmserver_cliconn_pt c: Reference to client structure.
+*/
+void __dmserver_cconn_set_defaults(dmserver_cliconn_pt c){
+    c->crbuffer_size = DEFAULT_CCONN_RBUFFERLEN;
+    c->cwbuffer_size = DEFAULT_CCONN_WBUFFERLEN;
+}
+
+/*
+    @brief Function to set the size of the client read buffer.
+    @note: Allocation must be done to these changes take effect (deallocate before a new
+    allocation to avoid memory leaks).
+    
+    @param dmserver_cliconn_pt c: Reference to client structure.
+*/
+void __dmserver_cconn_set_creadbuffer(dmserver_cliconn_pt c, size_t crbuf_size){
+    c->crbuffer_size = crbuf_size;
+}
+
+/*
+    @brief Function to set the size of the client write buffer.
+    @note: Allocation must be done to these changes take effect (deallocate before a new
+    allocation to avoid memory leaks).
+    
+    @param dmserver_cliconn_pt c: Reference to client structure.
+*/
+void __dmserver_cconn_set_cwritebuffer(dmserver_cliconn_pt c, size_t cwbuf_size){
+    c->cwbuffer_size = cwbuf_size;
 }

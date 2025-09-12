@@ -1,4 +1,5 @@
 #include "inc/dmserver.h"
+#include "inc/dmserver_cliconn.h"
 #include "inc/dmserver_servconn.h"
 #include "inc/dmserver_worker.h"
 
@@ -40,6 +41,12 @@ int main(int argc, char ** argv){
         .wth_subthreads=1,
         .wth_clispersth=6,
         .wth_clistimeout=40
+    })) exit(1);
+
+    // Client buffers configuration:
+    if (!dmserver_conf_cconn(serv, &(dmserver_cliconn_conf_t){
+        .cread_buffer_size = 10,
+        .cwrite_buffer_size = 5
     })) exit(1);
 
     // Server callbacks set:

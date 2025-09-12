@@ -233,7 +233,6 @@ bool dmserver_broadcast(dmserver_pt dmserver, dmserver_cliloc_pt bexclude, const
     // References & state check:
     if (!dmserver || !bcdata) return false;
     if (dmserver->sstate != DMSERVER_STATE_RUNNING) return false;
-    if (strlen(bcdata) >= DEFAULT_CCONN_WBUFFERLEN) return false;
 
     // Broadcast write to every connected client:
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Starting broadcast...");
@@ -246,8 +245,8 @@ bool dmserver_broadcast(dmserver_pt dmserver, dmserver_cliloc_pt bexclude, const
         // Copy broadcast data to the client write buffer:
         pthread_mutex_lock(&dmclient->cwlock);
 
-        strncpy(dmclient->cwbuffer, bcdata, DEFAULT_CCONN_WBUFFERLEN - 1);
-        dmclient->cwbuffer[DEFAULT_CCONN_WBUFFERLEN - 1] = '\0';
+        strncpy(dmclient->cwbuffer, bcdata, dmclient->cwbuffer_size - 1);
+        dmclient->cwbuffer[dmclient->cwbuffer_size - 1] = '\0';
         dmclient->cwlen = strlen(dmclient->cwbuffer);
 
         pthread_mutex_unlock(&dmclient->cwlock);
@@ -276,10 +275,10 @@ bool dmserver_broadcast(dmserver_pt dmserver, dmserver_cliloc_pt bexclude, const
     @retval true: Unicast succeeded.
 */
 bool dmserver_unicast(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc, const char * ucdata){
-    // References & state check:
+    // References, state & bounds check:
     if (!dmserver || !dmcliloc || !ucdata) return false;
     if (dmserver->sstate != DMSERVER_STATE_RUNNING) return false;
-    if (strlen(ucdata) >= DEFAULT_CCONN_WBUFFERLEN) return false;
+    if ((dmcliloc->th_pos >= dmserver->sworker.wth_subthreads) || (dmcliloc->wc_pos >= dmserver->sworker.wth_clispersth)) return false;
 
     // Client established check:
     struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[dmcliloc->th_pos][dmcliloc->wc_pos];
@@ -289,8 +288,8 @@ bool dmserver_unicast(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc, const c
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Starting unicast to client %d...", dmclient->cfd);
     pthread_mutex_lock(&dmclient->cwlock);
 
-    strncpy(dmclient->cwbuffer, ucdata, DEFAULT_CCONN_WBUFFERLEN - 1);
-    dmclient->cwbuffer[DEFAULT_CCONN_WBUFFERLEN - 1] = '\0';
+    strncpy(dmclient->cwbuffer, ucdata, dmclient->cwbuffer_size - 1);
+    dmclient->cwbuffer[dmclient->cwbuffer_size - 1] = '\0';
     dmclient->cwlen = strlen(dmclient->cwbuffer);
 
     pthread_mutex_unlock(&dmclient->cwlock);
@@ -397,7 +396,7 @@ bool dmserver_conf_sconn(dmserver_pt dmserver, dmserver_servconn_conf_pt sconn_c
     @note: This function must be called after initialization OR after closing the server.
 
     @param dmserver_pt dmserver: Reference to server struct.
-    @param dmserver_servconn_conf_pt: Reference to server connection configuration struct.
+    @param dmserver_servconn_conf_pt worker_conf: Reference to worker connection configuration struct.
 
     @retval true: Configuration succeeded.
     @retval false: Configuration failed.
@@ -408,7 +407,7 @@ bool dmserver_conf_worker(dmserver_pt dmserver, dmserver_worker_conf_pt worker_c
     if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
 
     // Deallocate previous worker configuraiton and memory:
-    __dmserver_worker_dealloc(&dmserver->sworker);
+    if (!__dmserver_worker_dealloc(&dmserver->sworker)) return false;
 
     // If there is no configuration given, set to defaults and exit:
     if (!worker_conf) { __dmserver_worker_set_defaults(&dmserver->sworker); __dmserver_worker_alloc(&dmserver->sworker); return true;}
@@ -418,10 +417,45 @@ bool dmserver_conf_worker(dmserver_pt dmserver, dmserver_worker_conf_pt worker_c
     if (worker_conf->wth_clispersth) __dmserver_worker_set_clispersth(&dmserver->sworker, worker_conf->wth_clispersth);
     if (worker_conf->wth_clistimeout) __dmserver_worker_set_clistimeout(&dmserver->sworker, worker_conf->wth_clistimeout);
 
-    __dmserver_worker_alloc(&dmserver->sworker);
+    if (!__dmserver_worker_alloc(&dmserver->sworker)) return false;
     return true;
 }
 
+/*
+    @brief Function to configure the clients buffers length.
+    @note: This function must be called after initialization OR after closing the server.
+
+    @param dmserver_pt dmserver: Reference to server struct.
+    @param dmserver_cliconn_conf_pt cconn_conf: Reference to client connection (buffers only) configuration struct.
+
+    @retval true: Configuration succeeded.
+    @retval false: Configuration failed.
+*/
+bool dmserver_conf_cconn(dmserver_pt dmserver, dmserver_cliconn_conf_pt cconn_conf){
+    // Reference & state check:
+    if (!dmserver) return false;
+    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
+
+    // Iterate over all the clients slots on the server:
+    for (size_t i = 0; i < dmserver->sworker.wth_subthreads; i++){for (size_t j = 0; j < dmserver->sworker.wth_clispersth; j++){
+        // Client:
+        dmserver_cliconn_pt dmclient = &dmserver->sworker.wcclis[i][j];
+
+        // Deallocate previous read/write buffers:
+        if (!__dmserver_cconn_buf_dealloc(dmclient)) continue;
+
+        // In case that the configuration structure is null, set the default buffers length:
+        if (!cconn_conf) __dmserver_cconn_set_defaults(dmclient);
+
+        // Read/Write buffers length set:
+        if (cconn_conf->cread_buffer_size) __dmserver_cconn_set_creadbuffer(dmclient, cconn_conf->cread_buffer_size);
+        if (cconn_conf->cwrite_buffer_size) __dmserver_cconn_set_cwritebuffer(dmclient, cconn_conf->cwrite_buffer_size);
+
+        // Allocate new read/write buffers:
+        if (!__dmserver_cconn_buf_alloc(dmclient)) continue;
+    }}
+    return true;
+}
 
 
 // ======== Configuration - Callbacks:

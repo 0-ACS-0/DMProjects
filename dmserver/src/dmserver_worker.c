@@ -470,13 +470,13 @@ static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_clicon
         int rb = 0;
         int rb_err = 0;
         if (dmserver->sconn.sssl_enable){
-            rb = SSL_read(dmclient->cssl, dmclient->crbuffer, DEFAULT_CCONN_RBUFFERLEN-1);
+            rb = SSL_read(dmclient->cssl, dmclient->crbuffer, dmclient->crbuffer_size-1);
             rb_err = SSL_get_error(dmclient->cssl, rb);
         } else {
-            rb = read(dmclient->cfd, dmclient->crbuffer, DEFAULT_CCONN_RBUFFERLEN-1);
+            rb = read(dmclient->cfd, dmclient->crbuffer, dmclient->crbuffer_size-1);
             rb_err = errno;
         }
-        dmclient->crbuffer[DEFAULT_CCONN_RBUFFERLEN - 1] = '\0';
+        dmclient->crbuffer[dmclient->crbuffer_size - 1] = '\0';
 
         if (rb > 0){
             // Data reception case:
@@ -488,7 +488,7 @@ static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_clicon
             
             // User specific data processing of received data and read buffer reset afterwards:
             if (dmserver->scallback.on_client_rcv) dmserver->scallback.on_client_rcv(dmclient);
-            memset(dmclient->crbuffer, 0, DEFAULT_CCONN_RBUFFERLEN);
+            memset(dmclient->crbuffer, 0, dmclient->crbuffer_size);
 
         } else if ((rb == 0) || ((rb_err == SSL_ERROR_ZERO_RETURN) && dmserver->sconn.sssl_enable)){
             // Client disconnect case:
@@ -558,7 +558,7 @@ static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_clico
 
             // Write data user callback and reset:
             if (dmserver->scallback.on_client_snd) dmserver->scallback.on_client_snd(dmclient);
-            memset(dmclient->cwbuffer, 0, DEFAULT_CCONN_WBUFFERLEN);
+            memset(dmclient->cwbuffer, 0, dmclient->cwbuffer_size);
             dmclient->cwlen = 0;
              
         } else if ((((wb_err != SSL_ERROR_WANT_READ) && (wb_err != SSL_ERROR_WANT_WRITE)) && dmserver->sconn.sssl_enable) || (((wb_err != EAGAIN) && (wb_err != EWOULDBLOCK) && (wb_err != EINTR)) && !dmserver->sconn.sssl_enable)) {
