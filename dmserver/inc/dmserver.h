@@ -73,12 +73,8 @@ void dmserver_init(dmserver_pt * dmserver);
 void dmserver_deinit(dmserver_pt * dmserver);
 
 // Configuration - General:
-bool dmserver_conf_port(dmserver_pt dmserver, int port);
-bool dmserver_conf_safamily(dmserver_pt dmserver, sa_family_t safamily);
-bool dmserver_conf_ipv6only(dmserver_pt dmserver, bool ipv6only);
-bool dmserver_conf_tlsenable(dmserver_pt dmserver, bool tlsv13en);
-bool dmserver_conf_certpath(dmserver_pt dmserver, const char * certpath);
-bool dmserver_conf_keypath(dmserver_pt dmserver, const char * keypath);
+bool dmserver_conf_sconn(dmserver_pt dmserver, dmserver_servconn_conf_pt sconn_conf);
+bool dmserver_conf_worker(dmserver_pt dmserver, dmserver_worker_conf_pt worker_conf);
 
 // Configuration - Callbacks:
 bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(dmserver_cliconn_pt));

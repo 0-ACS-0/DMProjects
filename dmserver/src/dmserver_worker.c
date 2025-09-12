@@ -17,6 +17,129 @@ static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_clico
 
 
 /* ---- INTERNAL - Functions implementation ----------------------- */
+// ======== Allocators:
+/*
+    @brief Function to allocate all the configurable worker memory (also create the epoll infrastructure). 
+
+    @param dmserver_worker_pt w: Worker struct reference.
+
+    @retval true: Allocation succeeded.
+    @retval false: Allocation failed.
+*/
+bool __dmserver_worker_alloc(dmserver_worker_pt w){
+    // Reference check:
+    if (!w) return false;
+
+    // Main thread epoll:
+    w->wmainepfd = epoll_create1(0);
+    if (w->wmainepfd == -1) {__dmserver_worker_dealloc(w); return false;}
+
+    // Allocation for subthreads, subthreads epoll:
+    w->wsubth = calloc(w->wth_subthreads, sizeof(pthread_t));
+    if (!w->wsubth) {__dmserver_worker_dealloc(w); return false;}
+    w->wsubepfd = calloc(w->wth_subthreads, sizeof(int));
+    if (!w->wsubepfd) {__dmserver_worker_dealloc(w); return false;}
+
+    // Allocation for clients queue (including counters):
+    w->wccount = calloc(w->wth_subthreads, sizeof(size_t));
+    if (!w->wccount) {__dmserver_worker_dealloc(w); return false;}
+    w->wcclis = calloc(w->wth_subthreads, sizeof(dmserver_cliconn_pt));
+    if (!w->wcclis) {__dmserver_worker_dealloc(w); return false;}
+    for (size_t i = 0; i < w->wth_subthreads; i++){
+        w->wcclis[i] = calloc(w->wth_clispersth, sizeof(dmserver_cliconn_t));
+        if (!w->wcclis[i]) {__dmserver_worker_dealloc(w); return false;}
+        w->wsubepfd[i] = epoll_create1(0);
+        if (w->wsubepfd[i] == -1) {__dmserver_worker_dealloc(w); return false;}
+        for (size_t j = 0; j < w->wth_clispersth; j++){
+            if (!_dmserver_cconn_init(&w->wcclis[i][j])) {__dmserver_worker_dealloc(w); return false;}
+        }
+    }
+
+    return true;
+}
+
+/*
+    @brief Function to deallocate all the configurable memory reserver for the worker.
+
+    @param dmserver_worker_pt w: Worker reference.
+
+    @retval true: Deallocation succeeded.
+    @retval false: Deallocation failed.
+*/
+bool __dmserver_worker_dealloc(dmserver_worker_pt w){
+    // Deallocation of clients queue data and subordinate threads epoll:
+    for (size_t i = 0; i < w->wth_subthreads; i++){
+        for (size_t j = 0; j < w->wth_clispersth; j++){
+            if (!_dmserver_cconn_deinit(&w->wcclis[i][j])) return false;
+        }
+        if (w->wsubepfd[i] != -1) close(w->wsubepfd[i]);
+        if (w->wcclis[i]) free(w->wcclis[i]);
+    }
+    if (w->wmainepfd != -1) close(w->wmainepfd);
+    if (w->wcclis) free(w->wcclis);
+    if (w->wccount) free(w->wccount);
+
+    // Deallocation of the rest of reserved memory:
+    if (w->wsubepfd) free(w->wsubepfd);
+    if (w->wsubth) free(w->wsubth);
+
+    return true;
+}
+
+// ======== Setters:
+/*
+    @brief Function to initialize the worker to its defaults values.
+    @note: For this changes to take effect, the worker must be allocated afterwards, but
+    remember to deallocate first to avoid memory leaks.
+
+    @param dmserver_worker_t w: Reference to worker structure.
+*/
+void __dmserver_worker_set_defaults(dmserver_worker_pt w){
+    // Set defaults number of threads, number of clients per subordinate thread and client timeout:
+    w->wth_subthreads = DEFAULT_WORKER_SUBTHREADS;
+    w->wth_clispersth = DEFAULT_WORKER_CLISPERSTH;
+    w->wth_clistimeout = DEFAULT_WORKER_CLITIMEOUT;
+}
+
+/*
+    @brief Function to set a specific number of subordinate workers threads.
+    @note: For this changes to take effect, the worker must be allocated afterwards, but
+    remember to deallocate first to avoid memory leaks.
+
+    @param dmserver_worker_t w: Reference to worker structure.
+    @param size_t wth_subthreads: Number of subordinate worker threads.
+*/
+void __dmserver_worker_set_subthreads(dmserver_worker_pt w, size_t wth_subthreads){
+    w->wth_subthreads = wth_subthreads;
+}
+
+/*
+    @brief Function to set a specific number of clients per subordinate worker thread.
+    @note: For this changes to take effect, the worker must be allocated afterwards, but
+    remember to deallocate first to avoid memory leaks.
+
+    @param dmserver_worker_t w: Reference to worker structure.
+    @param size_t wth_subthreads: Number of clients per subordinate worker threads.
+*/
+void __dmserver_worker_set_clispersth(dmserver_worker_pt w, size_t wth_clispersth){
+    w->wth_clispersth = wth_clispersth;
+}
+
+/*
+    @brief Function to set the clients maximum timeout without interaction with worker.
+    @note: For this changes to take effect, the worker must be allocated afterwards, but
+    remember to deallocate first to avoid memory leaks.
+
+    @param dmserver_worker_t w: Reference to worker structure.
+    @param size_t wth_subthreads: Number of seconds without interaction allowed.
+*/
+void __dmserver_worker_set_clistimeout(dmserver_worker_pt w, size_t wth_clistimeout){
+    w->wth_clistimeout = wth_clistimeout;
+}
+
+
+
+// ======== Threads:
 /*
     @brief Function that implements the main thread of dmserver.
     Accept connections and distribute clients to subordinated threads.
@@ -71,11 +194,11 @@ void * _dmserver_worker_sub(void * args){
     if (pthread_create(&ctimeout_th, NULL, _dmserver_subworker_timeout, args)) return NULL;
 
     // Prepare the subordinate thread epoll to optimize CPU usage:
-    struct epoll_event evs[DEFAULT_WORKER_CLISPERSTH];
+    struct epoll_event evs[dmserver->sworker.wth_clispersth];
 
     while (dmserver->sstate == DMSERVER_STATE_RUNNING){
         // Epoll wait for events:
-        int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, DEFAULT_WORKER_CLISPERSTH, 4000);
+        int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, dmserver->sworker.wth_clispersth, 4000);
         if ((nfds < 0)  || (errno == EINTR)) {continue;}
 
         for (size_t i = 0; i < nfds; i++){
@@ -99,7 +222,7 @@ void * _dmserver_worker_sub(void * args){
     pthread_join(ctimeout_th, NULL);
 
     // Completly closes the clients connections at thread exit:
-    for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
+    for (size_t i = 0; i < dmserver->sworker.wth_clispersth; i++){
         dmserver_disconnect(dmserver, &(dmserver_cliloc_t){.th_pos=dmthindex, .wc_pos=i});
     }
 
@@ -127,7 +250,7 @@ void * _dmserver_subworker_timeout(void * args){
 
     while (true){
         // Check timeout of the subworker clients:
-        for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
+        for (size_t i = 0; i < dmserver->sworker.wth_clispersth; i++){
             _dmserver_helper_cctimeout(dmserver, &dmserver->sworker.wcclis[dmthindex][i]); 
         }
 
@@ -157,18 +280,21 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
     socklen_t temp_caddrlen = sizeof(temp_caddr);
     temp_cfd = accept4(dmserver->sconn.sfd, (struct sockaddr *)&temp_caddr, &temp_caddrlen, SOCK_NONBLOCK);
     if (temp_cfd < 0) return;
-    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
 
     // Distribute client to the less populated subordinate thread and the next free slot (just find the location in the client matrix):
     size_t temp_thindex = 0;
-    for (size_t i = 0; i < DEFAULT_WORKER_SUBTHREADS; i++){
+    for (size_t i = 0; i < dmserver->sworker.wth_subthreads; i++){
         if (dmserver->sworker.wccount[i] < dmserver->sworker.wccount[temp_thindex]) temp_thindex = i;
     }
     size_t temp_cindex = 0;
-    for (size_t i = 0; i < DEFAULT_WORKER_CLISPERSTH; i++){
+    for (size_t i = 0; i < dmserver->sworker.wth_clispersth; i++){
         if (dmserver->sworker.wcclis[temp_thindex][i].cstate == DMSERVER_CLIENT_STANDBY) {temp_cindex = i; break;}
     }
+
+    // Check if server capacity is full:
     struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[temp_thindex][temp_cindex];
+    if ((dmclient->cstate == DMSERVER_CLIENT_ESTABLISHING) || (dmclient->cstate == DMSERVER_CLIENT_ESTABLISHED)){close(temp_cfd); return;}
+    dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d assigned to point (%lu, %lu).", temp_cfd, temp_thindex, temp_cindex);
 
     // Set the connection data into the selected client slot & add fd to the subthread epoll:
@@ -309,10 +435,10 @@ static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cli
     if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) return false;
 
     // Timeout check and process:
-    if(!_dmserver_cconn_checktimeout(dmclient, DEFAULT_WORKER_CLITIMEOUT)){
+    if(!_dmserver_cconn_checktimeout(dmclient, dmserver->sworker.wth_clistimeout)){
         if (dmserver->scallback.on_client_timeout) dmserver->scallback.on_client_timeout(dmclient);
-        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d timedout, connection closed.\n", dmclient->cfd);
-        dmserver_disconnect(dmserver, &(dmserver_cliloc_t){.th_pos=dmclient->cloc.th_pos, .wc_pos=dmclient->cloc.th_pos});
+        dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d timedout, closing connection...", dmclient->cfd);
+        dmserver_disconnect(dmserver, &(dmserver_cliloc_t){.th_pos=dmclient->cloc.th_pos, .wc_pos=dmclient->cloc.wc_pos});
         return false;
     }
 

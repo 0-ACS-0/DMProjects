@@ -4,8 +4,10 @@
 
 /* ---- Library --------------------------------------------------- */
 #include "../inc/dmserver_servconn.h"
+#include <string.h>
 
 /* ---- INTERNAL - Functions implementation ----------------------- */
+// ======== General use:
 /*
     @brief Function to initialize the server connection.
 
@@ -19,7 +21,7 @@ bool _dmserver_sconn_init(struct dmserver_servconn * s){
     if (!s) return false;
 
     // Socket file descriptor tcp, close at exec() & socket non-blocking:
-    s->sfd = socket(s->sfamily, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+    s->sfd = socket(s->ssafamily, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
     if (s->sfd < 0) return false;
 
     // Socket configuration:
@@ -27,25 +29,25 @@ bool _dmserver_sconn_init(struct dmserver_servconn * s){
     sopt = true;
     if (setsockopt(s->sfd, SOL_SOCKET, SO_REUSEADDR, &sopt, sizeof(sopt)) < 0){_dmserver_sconn_deinit(s); return false;}
     if (setsockopt(s->sfd, SOL_SOCKET, SO_REUSEPORT, &sopt, sizeof(sopt)) < 0){_dmserver_sconn_deinit(s); return false;}
-    if (s->sfamily == AF_INET6){
+    if (s->ssafamily == AF_INET6){
         sopt = s->ss6only;
         if (setsockopt(s->sfd, IPPROTO_IPV6, IPV6_V6ONLY, &sopt, sizeof(sopt)) < 0) {_dmserver_sconn_deinit(s); return false;}
     }
 
     // Socket address structure & bind:
     memset(&s->saddr, 0, sizeof(s->saddr));
-    switch(s->sfamily){
+    switch(s->ssafamily){
         case AF_INET:
             s->saddr.s4.sin_addr.s_addr = INADDR_ANY;
             s->saddr.s4.sin_port = htons(s->sport);
-            s->saddr.s4.sin_family = s->sfamily;
+            s->saddr.s4.sin_family = s->ssafamily;
             if (bind(s->sfd, (struct sockaddr *)&s->saddr.s4, sizeof(s->saddr.s4)) < 0){_dmserver_sconn_deinit(s); return false;}
         break;
 
         case AF_INET6:
             s->saddr.s6.sin6_addr = in6addr_any;
             s->saddr.s6.sin6_port = htons(s->sport);
-            s->saddr.s6.sin6_family = s->sfamily;
+            s->saddr.s6.sin6_family = s->ssafamily;
             if (bind(s->sfd, (struct sockaddr *)&s->saddr.s6, sizeof(s->saddr.s6)) < 0){_dmserver_sconn_deinit(s); return false;}
         break;
 
@@ -155,4 +157,93 @@ bool _dmserver_sconn_listen(struct dmserver_servconn * s){
     // Socket listen:
     if (listen(s->sfd, SOMAXCONN) < 0) return false;
     return true;
+}
+
+
+
+
+
+
+
+
+// ======== Configuration:
+/*
+    @brief Function to configure the server with defaults values.
+
+    @param dmserver_servconn_pt s: Reference to server conn. structure.
+*/
+void __dmserver_sconn_set_defaults(dmserver_servconn_pt s){
+    // Sockets defaults:
+    s->sfd = -1;
+    s->sport = DEFAULT_SCONN_SPORT;
+    s->ssafamily = DEFAULT_SCONN_SFAMILY;
+
+    // SSL Defaults:
+    s->sssl_enable = DEFAULT_SCONN_SSLENABLE;
+    strncpy(s->sssl_certpath, DEFAULT_SCONN_CERTPATHVAL, DEFAULT_SCONN_CERTPATHLEN);
+    s->sssl_certpath[DEFAULT_SCONN_CERTPATHLEN - 1] = '\0';
+    strncpy(s->sssl_keypath, DEFAULT_SCONN_KEYPATHVAL, DEFAULT_SCONN_KEYPATHLEN);
+    s->sssl_keypath[DEFAULT_SCONN_KEYPATHLEN - 1] = '\0';
+}
+
+/*
+    @brief Function to configure the server connection port.
+
+    @param dmserver_servconn_pt s: Reference to server conn. structure.
+    @param int s_port: Port number.
+*/
+void __dmserver_sconn_set_port(dmserver_servconn_pt s, int sport){
+    s->sport = sport;
+}
+
+/*
+    @brief Function to configure the server socket address family.
+    
+    @param dmserver_servconn_pt s: Reference to server conn. structure.
+    @param sa_family_t sa_family: Socket address family.
+*/
+void __dmserver_sconn_set_safamily(dmserver_servconn_pt s, sa_family_t sa_family){
+    s->ssafamily = sa_family;
+}
+
+/*
+    @brief Function to configure the server address ipv6 family only option.
+       
+    @param dmserver_servconn_pt s: Reference to server conn. structure.
+    @param bool ipv6_only: IPv6 only flag.
+*/
+void __dmserver_sconn_set_ipv6only(dmserver_servconn_pt s, bool sipv6_only){
+    s->ss6only = sipv6_only;
+}
+
+/*
+    @brief Function to configure the enable flag for tls encryption.
+
+    @param dmserver_servconn_pt s: Reference to server conn. structure.
+    @param bool tls_enable: Falg to enable tls encryption.
+*/
+void __dmserver_sconn_set_tls(dmserver_servconn_pt s, bool stls_enable){
+    s->sssl_enable = stls_enable;
+}
+
+/*
+    @brief Function to configure the route to the certificate of the server.
+
+    @param dmserver_servconn_pt s: Reference to server conn. structure.
+    @param const char * cert_path: Certificate path char string reference.
+*/
+void __dmserver_sconn_set_certpath(dmserver_servconn_pt s, const char * scert_path){
+    strncpy(s->sssl_certpath, scert_path, DEFAULT_SCONN_CERTPATHLEN);
+    s->sssl_certpath[DEFAULT_SCONN_CERTPATHLEN - 1] = '\0';
+}
+
+/*
+    @brief Function to configure the route to the key path of the server.
+
+    @param dmserver_servconn_pt s: Reference to server conn. structure.
+    @param const char * key_path: Key path char string reference.
+*/
+void __dmserver_sconn_set_keypath(dmserver_servconn_pt s, const char * skey_path){
+    strncpy(s->sssl_keypath, skey_path, DEFAULT_SCONN_KEYPATHLEN);
+    s->sssl_keypath[DEFAULT_SCONN_KEYPATHLEN - 1] = '\0';
 }

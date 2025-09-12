@@ -1,4 +1,6 @@
 #include "inc/dmserver.h"
+#include "inc/dmserver_servconn.h"
+#include "inc/dmserver_worker.h"
 
 // Global server variable:
 dmserver_pt serv;
@@ -24,12 +26,21 @@ int main(int argc, char ** argv){
     if(!dmlogger_conf_queue_ofpolicy(serv->slogger, DMLOGGER_OFPOLICY_DROP, 0)) exit(1);
 
     // Server connection data configuration:
-    if (!dmserver_conf_port(serv, 2020)) exit(1);
-    if (!dmserver_conf_safamily(serv, AF_INET)) exit(1);
-    if (!dmserver_conf_ipv6only(serv, false)) exit(1);
-    if (!dmserver_conf_tlsenable(serv, true)) exit(1);
-    if (!dmserver_conf_certpath(serv, "./certs/server.crt")) exit(1);
-    if (!dmserver_conf_keypath(serv, "./certs/server.key")) exit(1);
+    if (!dmserver_conf_sconn(serv, &(dmserver_servconn_conf_t){
+        .sport=2020,
+        .ssa_family=AF_INET,
+        .sipv6_only=false,
+        .stls_enable=true,
+        .scert_path="./certs/server.crt",
+        .skey_path="./certs/server.key"
+    })) exit(1);
+    
+    // Worker configuration:
+    if (!dmserver_conf_worker(serv, &(dmserver_worker_conf_t){
+        .wth_subthreads=1,
+        .wth_clispersth=6,
+        .wth_clistimeout=40
+    })) exit(1);
 
     // Server callbacks set:
     if (!dmserver_setcb_onclientrcv(serv, echo_fn)) exit(1);

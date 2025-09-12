@@ -10,8 +10,8 @@
 #include "dmserver_hdrs.h"
 
 /* ---- Defines  -------------------------------------------------- */
-#define DEFAULT_CCONN_RBUFFERLEN 1024
-#define DEFAULT_CCONN_WBUFFERLEN 1024
+#define DEFAULT_CCONN_RBUFFERLEN 4096
+#define DEFAULT_CCONN_WBUFFERLEN 4096
 
 /* ---- Enumerations: Cli state ----------------------------------- */
 enum dmserver_cconn_state{
