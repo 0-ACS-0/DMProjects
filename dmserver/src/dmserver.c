@@ -460,101 +460,30 @@ bool dmserver_conf_cconn(dmserver_pt dmserver, dmserver_cliconn_conf_pt cconn_co
 
 // ======== Configuration - Callbacks:
 /*
-    @brief Function to set a callback function when a client connects to the server.
-    @note: This function must be called after initialization OR after server close.
+    @brief Function to set the callbacks available to the server, to apply external functionallity.
+    @note: This function must be called after initialization OR after closing the server.
 
-    @param dmserver_pt dmserver: Reference to dmserver struct.
-    @param void (*on_client_connect)(void *): Reference to callback function.
+    @param dmserver_pt dmserver: Reference to server struct.
+    @param dmserver_callback_conf_pt callback_conf: Reference to callbacks configuration structure.
 
-    @retval true: Callback assignation succeeded.
-    @retval false: Callback assignation failed.
+    @retval true: Configuration succeeded.
+    @retval false: Configuration failed. 
 */
-bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(dmserver_cliconn_pt)){
+bool dmserver_set_cb(dmserver_pt dmserver, dmserver_callback_conf_pt callback_conf){
     // References & state check:
-    if (!dmserver || !on_client_connect) return false;
+    if (!dmserver) return false;
     if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
     
-    // Callback assignation:
-    dmserver->scallback.on_client_connect = on_client_connect;
-    return true;
-}
+    // In case no configuration structure is given, exist as configured:
+    if (!callback_conf) return true;
 
-/*
-    @brief Function to set a callback function when a client disconnects to the server.
-    @note: This function must be called after initialization OR after server close.
+    // Callbacks set:
+    if (callback_conf->on_client_connect) __dmserver_setcb_onclientconnect(&dmserver->scallback, callback_conf->on_client_connect);
+    if (callback_conf->on_client_disconnect) __dmserver_setcb_onclientdisconnect(&dmserver->scallback, callback_conf->on_client_disconnect);
+    if (callback_conf->on_client_timeout) __dmserver_setcb_onclienttimeout(&dmserver->scallback, callback_conf->on_client_timeout);
+    if (callback_conf->on_client_rcv) __dmserver_setcb_onclientrcv(&dmserver->scallback, callback_conf->on_client_rcv);
+    if (callback_conf->on_client_snd) __dmserver_setcb_onclientsnd(&dmserver->scallback, callback_conf->on_client_snd);
 
-    @param dmserver_pt dmserver: Reference to dmserver struct.
-    @param void (*on_client_disconnect)(void *): Reference to callback function.
 
-    @retval true: Callback assignation succeeded.
-    @retval false: Callback assignation failed.
-*/
-bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_disconnect)(dmserver_cliconn_pt)){
-    // References & state check:
-    if (!dmserver || !on_client_disconnect) return false;
-    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
-
-    // Callback assignation:
-    dmserver->scallback.on_client_disconnect = on_client_disconnect;
-    return true;
-}
-
-/*
-    @brief Function to set a callback function when a client timedout to the server.
-    @note: This function must be called after initialization OR after server close.
-
-    @param dmserver_pt dmserver: Reference to dmserver struct.
-    @param void (*on_client_timeout)(void *): Reference to callback function.
-
-    @retval true: Callback assignation succeeded.
-    @retval false: Callback assignation failed.
-*/
-bool dmserver_setcb_onclienttimeout(dmserver_pt dmserver, void (*on_client_timeout)(dmserver_cliconn_pt)){
-    // References & state check:
-    if (!dmserver || !on_client_timeout) return false;
-    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
-
-    // Callback assignation:
-    dmserver->scallback.on_client_timeout = on_client_timeout;
-    return true;
-}
-
-/*
-    @brief Function to set a callback function when received data from a client.
-    @note: This function must be called after initialization OR after server close.
-
-    @param dmserver_pt dmserver: Reference to dmserver struct.
-    @param void (*on_client_rcv)(void *): Reference to callback function.
-
-    @retval true: Callback assignation succeeded.
-    @retval false: Callback assignation failed.
-*/
-bool dmserver_setcb_onclientrcv(dmserver_pt dmserver, void (*on_client_rcv)(dmserver_cliconn_pt)){
-    // References & state check:
-    if (!dmserver || !on_client_rcv) return false;
-    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
-
-    // Callback assignation:
-    dmserver->scallback.on_client_rcv = on_client_rcv;
-    return true;
-}
-
-/*
-    @brief Function to set a callback function when sent data from a client.
-    @note: This function must be called after initialization OR after server close.
-
-    @param dmserver_pt dmserver: Reference to dmserver struct.
-    @param void (*on_client_snd)(void *): Reference to callback function.
-
-    @retval true: Callback assignation succeeded.
-    @retval false: Callback assignation failed.
-*/
-bool dmserver_setcb_onclientsnd(dmserver_pt dmserver, void (*on_client_snd)(dmserver_cliconn_pt)){
-    // References & state check:
-    if (!dmserver || !on_client_snd) return false;
-    if ((dmserver->sstate != DMSERVER_STATE_INITIALIZED) && (dmserver->sstate != DMSERVER_STATE_CLOSED)) return false;
-
-    // Callback assignation:
-    dmserver->scallback.on_client_snd = on_client_snd;
     return true;
 }

@@ -255,7 +255,7 @@ void * _dmserver_subworker_timeout(void * args){
         }
 
         // CPU sleep to avoid overload:
-        sleep(4);
+        sleep(dmserver->sworker.wth_clistimeout / 8);
     }
 
     return NULL;
@@ -432,7 +432,7 @@ static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, struct dmserver
 static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cliconn * dmclient){
     // Refernces & state check:
     if (!dmserver || !dmclient) return false;
-    if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) return false;
+    if ((dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) && (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHING)) return false;
 
     // Timeout check and process:
     if(!_dmserver_cconn_checktimeout(dmclient, dmserver->sworker.wth_clistimeout)){

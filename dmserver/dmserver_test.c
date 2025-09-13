@@ -1,7 +1,4 @@
 #include "inc/dmserver.h"
-#include "inc/dmserver_cliconn.h"
-#include "inc/dmserver_servconn.h"
-#include "inc/dmserver_worker.h"
 
 // Global server variable:
 dmserver_pt serv;
@@ -38,9 +35,9 @@ int main(int argc, char ** argv){
     
     // Worker configuration:
     if (!dmserver_conf_worker(serv, &(dmserver_worker_conf_t){
-        .wth_subthreads=1,
-        .wth_clispersth=6,
-        .wth_clistimeout=40
+        .wth_subthreads=8,
+        .wth_clispersth=200,
+        .wth_clistimeout=60
     })) exit(1);
 
     // Client buffers configuration:
@@ -50,7 +47,9 @@ int main(int argc, char ** argv){
     })) exit(1);
 
     // Server callbacks set:
-    if (!dmserver_setcb_onclientrcv(serv, echo_fn)) exit(1);
+    if (!dmserver_set_cb(serv, &(dmserver_callback_conf_t){
+        .on_client_rcv = echo_fn
+    })) exit(1);
 
     // Server open + run:
     if (!dmserver_open(serv)) exit(1);

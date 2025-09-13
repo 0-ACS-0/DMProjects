@@ -27,6 +27,7 @@
 
 /* ---- Libraries ------------------------------------------------- */
 #include "dmserver_hdrs.h"
+#include "dmserver_callback.h"
 #include "dmserver_servconn.h"
 #include "dmserver_worker.h"
 
@@ -42,16 +43,6 @@ enum dmserver_state{
 };
 
 /* ---- Data structures ------------------------------------------- */
-// DMServer callbacks reference data structure:
-struct dmserver_callback{
-    // Callbacks available:
-    void (*on_client_connect)(struct dmserver_cliconn * cli);
-    void (*on_client_disconnect)(struct dmserver_cliconn * cli);
-    void (*on_client_timeout)(struct dmserver_cliconn * cli);
-    void (*on_client_rcv)(struct dmserver_cliconn * cli);
-    void (*on_client_snd)(struct dmserver_cliconn * cli);
-};
-
 // DMServer data structure:
 struct dmserver{
     struct dmserver_servconn sconn;
@@ -77,12 +68,8 @@ bool dmserver_conf_sconn(dmserver_pt dmserver, dmserver_servconn_conf_pt sconn_c
 bool dmserver_conf_worker(dmserver_pt dmserver, dmserver_worker_conf_pt worker_conf);
 bool dmserver_conf_cconn(dmserver_pt dmserver, dmserver_cliconn_conf_pt cconn_conf);
 
-// Configuration - Callbacks:
-bool dmserver_setcb_onclientconnect(dmserver_pt dmserver, void (*on_client_connect)(dmserver_cliconn_pt));
-bool dmserver_setcb_onclientdisconnect(dmserver_pt dmserver, void (*on_client_disconnect)(dmserver_cliconn_pt));
-bool dmserver_setcb_onclienttimeout(dmserver_pt dmserver, void (*on_client_timeout)(dmserver_cliconn_pt));
-bool dmserver_setcb_onclientrcv(dmserver_pt dmserver, void (*on_client_rcv)(dmserver_cliconn_pt));
-bool dmserver_setcb_onclientsnd(dmserver_pt dmserver, void (*on_client_snd)(dmserver_cliconn_pt));
+// Configuration - Set callbacks:
+bool dmserver_set_cb(dmserver_pt dmserver, dmserver_callback_conf_pt callback_conf);
 
 // Open / Run / Stop / Close:
 bool dmserver_open(dmserver_pt dmserver);
