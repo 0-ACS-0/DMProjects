@@ -8,10 +8,10 @@
 
 /* ---- Helper functions implementation prototypes ---------------- */
 static void _dmserver_helper_smanager(dmserver_pt dmserver);
-static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, struct dmserver_cliconn * c);
-static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cliconn * dmclient);
-static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
-static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
+static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, dmserver_cliconn_pt c);
+static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, dmserver_cliconn_pt dmclient);
+static bool _dmserver_helper_ccread(dmserver_pt dmserver, dmserver_cliconn_pt dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
+static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, dmserver_cliconn_pt dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex);
 
 
 
@@ -203,7 +203,7 @@ void * _dmserver_worker_sub(void * args){
 
         for (size_t i = 0; i < nfds; i++){
             // Obtain the pointer and check the state of the client that generated the event:
-            struct dmserver_cliconn * dmclient = evs[i].data.ptr;
+            dmserver_cliconn_pt dmclient = evs[i].data.ptr;
             if (!dmclient || ((dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) && (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHING))) continue;
 
             // Connection stages check:
@@ -292,7 +292,7 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
     }
 
     // Check if server capacity is full:
-    struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[temp_thindex][temp_cindex];
+    dmserver_cliconn_pt dmclient = &dmserver->sworker.wcclis[temp_thindex][temp_cindex];
     if ((dmclient->cstate == DMSERVER_CLIENT_ESTABLISHING) || (dmclient->cstate == DMSERVER_CLIENT_ESTABLISHED)){close(temp_cfd); return;}
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d assigned to point (%lu, %lu).", temp_cfd, temp_thindex, temp_cindex);
@@ -367,7 +367,7 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
     @retval false: SSL Handshake failed.
     @retval true: SSL Handshake succeeded.
 */
-static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, struct dmserver_cliconn * c){
+static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, dmserver_cliconn_pt c){
     // References check:
     if (!dmserver || !c) return false;
     if (!dmserver->sconn.sssl_enable || (c->cstate != DMSERVER_CLIENT_ESTABLISHING)) return true;
@@ -429,7 +429,7 @@ static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, struct dmserver
     @retval false: Client timedout and disconnected.
     @retval true: Client not timedout.
 */
-static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cliconn * dmclient){
+static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, dmserver_cliconn_pt dmclient){
     // Refernces & state check:
     if (!dmserver || !dmclient) return false;
     if ((dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) && (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHING)) return false;
@@ -457,7 +457,7 @@ static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, struct dmserver_cli
     @retval false: If read process lead to client disconnection.
     @retval true: If read process finished correctly.
 */
-static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex){
+static bool _dmserver_helper_ccread(dmserver_pt dmserver, dmserver_cliconn_pt dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex){
     // References check:
     if (!dmserver || !dmclient || !evs) return false;
 
@@ -523,7 +523,7 @@ static bool _dmserver_helper_ccread(dmserver_pt dmserver, struct dmserver_clicon
     @retval false: If write process lead to client disconnection.
     @retval true: If write process finished correctly.
 */
-static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, struct dmserver_cliconn * dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex){
+static bool _dmserver_helper_ccwrite(dmserver_pt dmserver, dmserver_cliconn_pt dmclient, size_t dmthindex, struct epoll_event * evs, size_t evindex){
     // References check:
     if (!dmserver || !dmclient || !evs) return false;
     

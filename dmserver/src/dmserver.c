@@ -238,7 +238,7 @@ bool dmserver_broadcast(dmserver_pt dmserver, dmserver_cliloc_pt bexclude, const
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Starting broadcast...");
     for (size_t i = 0; i < dmserver->sworker.wth_subthreads; i++){for (size_t j = 0; j < dmserver->sworker.wth_clispersth; j++){
         // Check client broadcast condition:
-        struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[i][j];
+        dmserver_cliconn_pt dmclient = &dmserver->sworker.wcclis[i][j];
         if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) continue;
         if (bexclude && (dmclient->cloc.th_pos == bexclude->th_pos) && (dmclient->cloc.wc_pos == bexclude->wc_pos)) continue;
 
@@ -281,7 +281,7 @@ bool dmserver_unicast(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc, const c
     if ((dmcliloc->th_pos >= dmserver->sworker.wth_subthreads) || (dmcliloc->wc_pos >= dmserver->sworker.wth_clispersth)) return false;
 
     // Client established check:
-    struct dmserver_cliconn * dmclient = &dmserver->sworker.wcclis[dmcliloc->th_pos][dmcliloc->wc_pos];
+    dmserver_cliconn_pt dmclient = &dmserver->sworker.wcclis[dmcliloc->th_pos][dmcliloc->wc_pos];
     if (dmclient->cstate != DMSERVER_CLIENT_ESTABLISHED) return false;
 
     // Copy unicast data to the client write buffer:

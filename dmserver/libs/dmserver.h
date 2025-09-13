@@ -45,9 +45,9 @@ enum dmserver_state{
 /* ---- Data structures ------------------------------------------- */
 // DMServer data structure:
 struct dmserver{
-    struct dmserver_servconn sconn;
-    struct dmserver_worker sworker;
-    struct dmserver_callback scallback;
+    dmserver_servconn_t sconn;
+    dmserver_worker_t sworker;
+    dmserver_callback_t scallback;
     dmlogger_pt slogger;
 
     enum dmserver_state sstate;
