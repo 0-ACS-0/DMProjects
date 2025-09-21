@@ -13,7 +13,7 @@ class DMClient():
     It is thought to be used as an asyncronous and non-blocking client which allows compatibility with more complex frameworks
     that use their internal syncronous loops.
     """
-    def __init__(self, shost="127.0.0.1", sport=2020, crb_len=4096, cuse_ssl=False):
+    def __init__(self, shost="127.0.0.1", sport=8080, crb_len=4096, cuse_ssl=False):
         """ Initialization of the class.
         
         Args:
@@ -37,18 +37,34 @@ class DMClient():
         # User related attributes:
         self._on_receive = None
         self._on_disconnect = None
+        self._on_connect = None
 
         # Loop control and non-blocking behaveour attributes:
         self._running = False
         self._loop = None
-        self._th = threading.Thread(target=self._cloop, daemon=True)
+        self._th = None
+
+    def setOnConnect(self, callback: Callable[[None], None]):
+        """ Function to set a callback to be executed when the client connects to the dmserver.
+
+        Args:
+            - callback(Callable[[None], None]): Function reference that takes no arguments and returns nothing.
+                                                Executed in the read loop(_connect) thread when a connection happens.
+        """
+        # In case callback si not valid ignore call:
+        if not callable(callback):
+            return False
+
+        # Callback set:
+        self._on_connect = callback
+        return True
 
     def setOnDisconnect(self, callback: Callable[[None], None]):
         """ Function to set a callback to be executed when the client disconnects from the dmserver.
 
         Args:
             - callback(Callable[[None], None]): Function reference that takes no arguments and returns nothing.
-                                                Executed in the read loop thread when a disconnection happens.
+                                                Executed in the read loop(_disconnect) thread when a disconnection happens.
         """
         # In case callback si not valid ignore call:
         if not callable(callback):
@@ -75,7 +91,7 @@ class DMClient():
         self._on_receive = callback
         return True
 
-    def isRunning(self) -> bool:
+    def isConnected(self) -> bool:
         """ Function to return the current state of the client.
 
         Return:
@@ -94,6 +110,7 @@ class DMClient():
 
         # Set the running state and starts the new thread (where the connection is handled):
         self._running = True
+        self._th = threading.Thread(target=self._cloop, daemon=True)
         self._th.start()
         return True
 
@@ -162,6 +179,13 @@ class DMClient():
                 ssl=self._cctx if self._cuse_ssl else None,
                 server_hostname=self._shost if self._cuse_ssl else None
             )
+
+            # Run callback:
+            if self._on_connect:
+                try:
+                    self._on_connect()
+                except Exception as cb_e:
+                    pass
             
         except Exception as e:
             self._running = False
@@ -177,12 +201,12 @@ class DMClient():
             self._cwriter = None
             self._creader = None
 
-        # Execute the corresponding callback if set:
-        if self._on_disconnect:
-            try:
-                self._on_disconnect()
-            except Exception as cb_e:
-                pass
+            # Execute the corresponding callback if set:
+            if self._on_disconnect:
+                try:
+                    self._on_disconnect()
+                except Exception as cb_e:
+                    pass
 
     def _cloop(self) -> None:
         """ Function (thread target) that launch the client working coroutine loop until is closed. """
@@ -202,7 +226,7 @@ class DMClient():
         """ Coroutine (main reading loop) that continuously reads data from the server side. If
         no data is received, connection is assumed as closed. """
         try:
-            # Previous connections with server side:
+            # Previous connection with server side:
             await self._connect()
 
             # Read loop:
@@ -241,7 +265,7 @@ if __name__ == "__main__":
     cli.connect()
 
     c = ""
-    while c != "exit()" and cli.isRunning():
+    while c != "exit()" and cli.isConnected():
         cli.send(c) 
         c = input(">> ")
 
