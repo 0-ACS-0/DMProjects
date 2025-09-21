@@ -1,6 +1,5 @@
 import socket, ssl
 import threading, asyncio
-import queue
 from typing import Callable
 
 class DMClient():
@@ -16,6 +15,7 @@ class DMClient():
     """
     def __init__(self, shost="127.0.0.1", sport=2020, crb_len=4096, cuse_ssl=False):
         """ Initialization of the class.
+        
         Args:
             - shost(str): IP(v4 or v6) of the dmserver host.
             - sport(int): Port number of the dmserver host.
@@ -216,7 +216,7 @@ class DMClient():
                 # Execute the user defined callback:
                 if self._on_receive:
                     try:
-                        self._on_receive(data)
+                        self._on_receive(data.decode('utf-8'))
                     except Exception as cb_e:
                         pass
                 
@@ -229,10 +229,11 @@ class DMClient():
 
 if __name__ == "__main__":
     def rcv_user_callback(msg: str):
-        print(f"[<<] Recibido: {msg.decode('utf-8')}")
+        print(f"[<<] Recibido: {msg}")
 
     def dc_user_callback():
         print("[!] Advertencia: Cliente desconectado.")
+        cli.disconnect()
 
     cli = DMClient(cuse_ssl=True)
     cli.setOnDisconnect(dc_user_callback)
@@ -244,4 +245,3 @@ if __name__ == "__main__":
         cli.send(c) 
         c = input(">> ")
 
-    cli.disconnect()
