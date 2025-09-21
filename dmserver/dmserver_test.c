@@ -37,13 +37,13 @@ int main(int argc, char ** argv){
     if (!dmserver_conf_worker(serv, &(dmserver_worker_conf_t){
         .wth_subthreads=8,
         .wth_clispersth=200,
-        .wth_clistimeout=60
+        .wth_clistimeout=120
     })) exit(1);
 
     // Client buffers configuration:
     if (!dmserver_conf_cconn(serv, &(dmserver_cliconn_conf_t){
-        .cread_buffer_size = 10,
-        .cwrite_buffer_size = 5
+        .cread_buffer_size = 4096,
+        .cwrite_buffer_size = 4096
     })) exit(1);
 
     // Server callbacks set:
