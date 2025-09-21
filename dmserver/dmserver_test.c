@@ -1,4 +1,4 @@
-#include "inc/dmserver.h"
+#include "./inc/dmserver.h"
 
 // Global server variable:
 dmserver_pt serv;
@@ -25,10 +25,10 @@ int main(int argc, char ** argv){
 
     // Server connection data configuration:
     if (!dmserver_conf_sconn(serv, &(dmserver_servconn_conf_t){
-        .sport=2020,
+        .sport=8080,
         .ssa_family=AF_INET,
         .sipv6_only=false,
-        .stls_enable=true,
+        .stls_enable=false,
         .scert_path="./certs/server.crt",
         .skey_path="./certs/server.key"
     })) exit(1);
@@ -57,6 +57,7 @@ int main(int argc, char ** argv){
 
     // Simple program loop (cmd -> exit() / broadcast / unicast):
     char c[12] = "";
+    char msg[4096] = "";
     while (strcmp(c, "exit()")){
         // Prompt and user input read:
         printf("Finish server with 'exit()' call>> ");
@@ -66,18 +67,36 @@ int main(int argc, char ** argv){
 
         // Broadcast command issued:
         if (!strcmp(c, "broadcast")){
-            dmserver_broadcast(serv, NULL, "Broadcast!\n");
+            printf("> Enter message to broadcast: ");
+            fflush(stdout);
+            fgets(msg, 4096, stdin);
+            msg[strlen(msg) - 1] = '\0';
+            dmserver_broadcast(serv, NULL, msg);
+            memset(msg, 0, 4096);
+
+            printf("\n");
+            fflush(stdout);
         }
 
         // Unicast command issued:
         if (!strcmp(c, "unicast")){
             int i[2] = {0};
-            printf("> Unicast th_pos: ");
+            printf("> Client th_pos: ");
             scanf("%d", &i[0]);
-            printf("> Unicast wc_pos: ");
+            printf("> Client wc_pos: ");
             scanf("%d", &i[1]);
             getchar();
-            dmserver_unicast(serv, &(dmserver_cliloc_t){.th_pos=i[0], .wc_pos=i[1]}, "Unicast!\n");
+
+            printf("> Enter message to unicast: ");
+            fflush(stdout);
+            fgets(msg, 4096, stdin);
+            msg[strlen(msg) - 1] = '\0';
+
+            dmserver_unicast(serv, &(dmserver_cliloc_t){.th_pos=i[0], .wc_pos=i[1]}, msg);
+            memset(msg, 0, 4096);
+
+            printf("\n");
+            fflush(stdout);
         }
 
         // Disconnect command issued:
@@ -89,6 +108,9 @@ int main(int argc, char ** argv){
             scanf("%d", &i[1]);
             getchar();
             dmserver_disconnect(serv, &(dmserver_cliloc_t){.th_pos=i[0], .wc_pos=i[1]});
+    
+            printf("\n");
+            fflush(stdout);
         }
     }
 

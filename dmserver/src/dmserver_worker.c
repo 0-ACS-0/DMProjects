@@ -3,7 +3,7 @@
 */
 
 /* ---- Library --------------------------------------------------- */
-#include "../inc/dmserver_worker.h"
+#include "../inc/_dmserver_worker.h"
 #include "../inc/dmserver.h"
 
 /* ---- Helper functions implementation prototypes ---------------- */

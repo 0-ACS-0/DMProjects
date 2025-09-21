@@ -57,7 +57,10 @@ void dmserver_deinit(dmserver_pt * dmserver){
     __dmserver_worker_dealloc(&(*dmserver)->sworker);
 
     // Dmserver-logger deinitialization (internally flush and dealloc):
-    if ((*dmserver)->slogger) {dmlogger_log((*dmserver)->slogger, DMLOGGER_LEVEL_INFO, "-------- DMServer at (%p) deinitialized.\n", (*dmserver)); dmlogger_deinit(&(*dmserver)->slogger);}
+    if ((*dmserver)->slogger) {
+        dmlogger_log((*dmserver)->slogger, DMLOGGER_LEVEL_INFO, "-------- DMServer at (%p) deinitialized.\n", (*dmserver));
+        dmlogger_deinit(&(*dmserver)->slogger);
+    }
 
     // Dmserver dealloc:
     free((*dmserver));
