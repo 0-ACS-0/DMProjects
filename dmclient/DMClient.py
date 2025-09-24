@@ -124,7 +124,8 @@ class DMClient():
             return False
 
         # Force the end of the reader thread and disconnect gracefuly:
-        self._running = False
+        if self._loop and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._disconnect(), self._loop)
         return True
 
     def send(self, data: str) -> bool:
@@ -195,18 +196,13 @@ class DMClient():
         self._running = False
 
         # Safely close the write streams and sets streams to default values:
-        if self._cwriter:
-            self._cwriter.close()
-            await self._cwriter.wait_closed()
-            self._cwriter = None
-            self._creader = None
+        if not self._cwriter:
+            return
 
-            # Execute the corresponding callback if set:
-            if self._on_disconnect:
-                try:
-                    self._on_disconnect()
-                except Exception as cb_e:
-                    pass
+        self._cwriter.close()
+        await self._cwriter.wait_closed()
+        self._cwriter = None
+        self._creader = None
 
     def _cloop(self) -> None:
         """ Function (thread target) that launch the client working coroutine loop until is closed. """
@@ -250,22 +246,41 @@ class DMClient():
             # Clean disconnection after loop ended:
             await self._disconnect()
 
+            # Execute the corresponding callback if set:
+            if self._on_disconnect:
+                try:
+                    self._on_disconnect()
+                except Exception as cb_e:
+                    pass
+
 
 if __name__ == "__main__":
     def rcv_user_callback(msg: str):
         print(f"[<<] Recibido: {msg}")
 
+    def c_user_callback():
+        print("[!] Advertencia: Cliente conectado con el servidor.")
     def dc_user_callback():
         print("[!] Advertencia: Cliente desconectado.")
         cli.disconnect()
 
-    cli = DMClient(cuse_ssl=True)
+    cli = DMClient(cuse_ssl=False, sport=7890, shost="127.0.0.1")
+    cli.setOnConnect(c_user_callback)
     cli.setOnDisconnect(dc_user_callback)
     cli.setOnReceive(rcv_user_callback)
     cli.connect()
 
     c = ""
-    while c != "exit()" and cli.isConnected():
+    while c != "exit()":
         cli.send(c) 
         c = input(">> ")
 
+        if c == "connect":
+            if not cli.isConnected():
+                cli.connect()
+            c = ""
+
+        if c == "disconnect":
+            if cli.isConnected():
+                cli.disconnect()
+            c = ""
