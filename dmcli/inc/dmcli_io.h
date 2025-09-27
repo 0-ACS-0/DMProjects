@@ -7,19 +7,7 @@
 #define _DMCLI_IO_HEADER
 
 /* ---- Libraries ------------------------------------------------- */
-// Standard:
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-
-#include <unistd.h>
-
-// Strings functions support:
-#include <string.h>
-#include <ctype.h>
-
-// Terminal control:
-#include <termios.h>
+#include "dmcli_hdrs.h"
 
 
 /* ---- Defines & macros ------------------------------------------ */
@@ -51,14 +39,18 @@ struct dmcli_io{
 };
 
 /* ---- Data types ------------------------------------------------ */
+// Configuration type:
+typedef struct dmcli_io_conf dmcli_io_conf_t;
+typedef dmcli_io_conf_t * dmcli_io_conf_pt;
+
 // Simple dmcli io data type:
 typedef struct dmcli_io dmcli_io_t;
 typedef dmcli_io_t * dmcli_io_pt;
 
 /* ---- Functions prototypes -------------------------------------- */
 // Alloc / Dealloc:
-bool dmcli_io_alloc(dmcli_io_pt * dmcli_io);
-bool dmcli_io_dealloc(dmcli_io_pt * dmcli_io);
+void dmcli_io_alloc(dmcli_io_pt * dmcli_io);
+void dmcli_io_dealloc(dmcli_io_pt * dmcli_io);
 
 // "Setters" / "Getters":
 bool dmcli_io_set_default(dmcli_io_pt dmcli_io);

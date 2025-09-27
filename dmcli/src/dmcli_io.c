@@ -4,7 +4,7 @@
 
 /* ---- Library --------------------------------------------------- */
 #include "../inc/dmcli_io.h"
-#include <string.h>
+
 
 /* ---- Helper functions implementation prototypes ---------------- */
 void _dmcli_helper_inbackspace(dmcli_io_pt dmcli_io);
@@ -22,22 +22,19 @@ void _dmcli_helper_inredraw(dmcli_io_pt dmcli_io);
     @retval true: If allocation succeeded.
     @retval false: If allocation failed.
 */
-bool dmcli_io_alloc(dmcli_io_pt * dmcli_io){
+void dmcli_io_alloc(dmcli_io_pt * dmcli_io){
     // Reference check:
-    if (!dmcli_io) return false;
+    if (!dmcli_io) return;
 
     // Structure allocation:
     *dmcli_io = calloc(1, sizeof(dmcli_io_t));
-    if (!(*dmcli_io)) return false;
+    if (!(*dmcli_io)) return;
 
-    // Allocation to defaults:
+    // Allocation of defaults:
     if (!dmcli_io_set_default(*dmcli_io)){
         free(*dmcli_io);
         *dmcli_io = NULL;
-        return false;
     }
-
-    return true;
 }
 
 /*
@@ -49,9 +46,9 @@ bool dmcli_io_alloc(dmcli_io_pt * dmcli_io){
     @retval true: if deallocation succeeded.
     @retval false: if deallocation failed.
 */
-bool dmcli_io_dealloc(dmcli_io_pt * dmcli_io){
+void dmcli_io_dealloc(dmcli_io_pt * dmcli_io){
     // Check references:
-    if (!dmcli_io || !(*dmcli_io)) return false;
+    if (!dmcli_io || !(*dmcli_io)) return;
 
     // Deallocation of the prompt string if set.
     if ((*dmcli_io)->prompt) {free((*dmcli_io)->prompt); (*dmcli_io)->prompt = NULL;}
@@ -73,7 +70,7 @@ bool dmcli_io_dealloc(dmcli_io_pt * dmcli_io){
     free(*dmcli_io);
     *dmcli_io = NULL;
 
-    return true;
+    return;
 }
 
 // ==== "Getters" & "Setters":
@@ -504,7 +501,7 @@ void _dmcli_helper_inilogset(dmcli_io_pt dmcli_io, const char * input_str){
 
     // Copy the new input string to the input string:
     if (input_str){
-        memcpy(dmcli_io->input, input_str, dmcli_io->input_capacity);
+        strncpy(dmcli_io->input, input_str, dmcli_io->input_capacity);
         dmcli_io->input_length = strlen(dmcli_io->input);
     }
 
