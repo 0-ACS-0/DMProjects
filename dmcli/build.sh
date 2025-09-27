@@ -1,0 +1,1 @@
+gcc -g -Wall -O0 -I./inc/ ./src/dmcli_io.c ./src/dmcli.c dmcli_test.c -o test.elf

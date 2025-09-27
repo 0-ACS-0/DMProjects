@@ -21,21 +21,12 @@
 #define _DMCLI_HEADER
 
 /* ---- Libraries ------------------------------------------------- */
-// Standard:
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
+#include "dmcli_io.h"
 
 
 /* ---- Defines & macros ------------------------------------------ */
 /* ---- Enumerations ---------------------------------------------- */
 /* ---- Data structures ------------------------------------------- */
-// Simple dmcli output:
-struct dmcli_io{
-    char * prompt;
-    char * input;
-};
-
 // Simple dmcli command system:
 struct dmcli_cmd{
     char ** cmd;
@@ -46,7 +37,7 @@ struct dmcli_cmd{
 struct dmcli{
     struct dmcli * supcli;
     struct dmcli * subcli;
-    struct dmcli_io io;
+    dmcli_io_pt io;
     struct dmcli_cmd cmd;
 };
 

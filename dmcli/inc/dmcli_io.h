@@ -16,6 +16,7 @@
 
 // Strings functions support:
 #include <string.h>
+#include <ctype.h>
 
 // Terminal control:
 #include <termios.h>
@@ -42,6 +43,7 @@ struct dmcli_io{
     char * input;           // User input, stores the most recent user input data.
     size_t input_capacity;  // User input capacity (characters) available.
     size_t input_length;    // User input lenght in characters.  
+    size_t input_cursor;    // User input cursor position.
 
     char ** ilog;           // Input log, stores a historical of the user input.
     size_t ilog_length;     // The length of the ilog member.
@@ -72,7 +74,11 @@ size_t dmcli_io_get_ilogcap(dmcli_io_pt dmcli_io);
 size_t dmcli_io_get_iloglen(dmcli_io_pt dmcli_io);
 char * dmcli_io_get_ilogat(dmcli_io_pt dmcli_io, size_t ilog_index);
 
+// Terminal raw mode ctl:
+bool dmcli_io_enterm_rawmode(dmcli_io_pt dmcli_io);
+bool dmcli_io_disterm_rawmode(dmcli_io_pt dmcli_io);
+
 // Utils:
-bool dmcli_wait4input(dmcli_io_pt dmcli_io);
+bool dmcli_io_wait4input(dmcli_io_pt dmcli_io);
 
 #endif

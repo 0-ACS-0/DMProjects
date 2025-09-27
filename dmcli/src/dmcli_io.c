@@ -4,12 +4,13 @@
 
 /* ---- Library --------------------------------------------------- */
 #include "../inc/dmcli_io.h"
-#include <ctype.h>
+#include <string.h>
 
 /* ---- Helper functions implementation prototypes ---------------- */
-bool _dmcli_helper_enterm_rawmode(dmcli_io_pt dmcli_io);
-bool _dmcli_helper_disterm_rawmode(dmcli_io_pt dmcli_io);
-
+void _dmcli_helper_inbackspace(dmcli_io_pt dmcli_io);
+void _dmcli_helper_inilogset(dmcli_io_pt dmcli_io, const char * input_str);
+void _dmcli_helper_inprintable(dmcli_io_pt dmcli_io, char c);
+void _dmcli_helper_inredraw(dmcli_io_pt dmcli_io);
 
 /* ---- INTERNAL - Functions implementation ----------------------- */
 // ======== Allocators:
@@ -117,9 +118,10 @@ bool dmcli_io_set_inputcap(dmcli_io_pt dmcli_io, size_t input_capacity){
     dmcli_io->input = calloc(input_capacity, sizeof(char));
     if (!dmcli_io->input) return false;
 
-    // Set the capacity and length:
+    // Set the capacity, length and cursor:
     dmcli_io->input_capacity = input_capacity;
     dmcli_io->input_length = 0;
+    dmcli_io->input_cursor = 0;
     return true;
 }
 
@@ -297,95 +299,6 @@ char * dmcli_io_get_input(dmcli_io_pt dmcli_io){
     return dmcli_io->input;
 }
 
-// ==== Utils:
-/*
-    @brief Function that blocks and waits for user input (\n) and process it to be accessible and
-    register to the input log.
-
-    @param dmcli_io_pt dmcli_io: Reference to dmcli_io structure.
-
-    @return true: If everything was correct.
-    @return false: If failed midway.
-*/
-bool dmcli_wait4input(dmcli_io_pt dmcli_io){
-    // Reference check: 
-    if (!dmcli_io) return false;
-
-    // Raw mode check (only works if raw mode is active):
-    if (!dmcli_io->is_raw) return false;
-
-    // Clear the input buffer:
-    memset(dmcli_io->input, '\0', dmcli_io->input_capacity);
-
-    // Show prompt:
-    printf("%s", dmcli_io->prompt);
-    fflush(stdout);
-
-    // Read/Write from the user (until '\n' is pressed):
-    size_t ilog_index = 0;
-    while (true){
-        // Char pressed & read number local variables:
-        char ch = '\0';
-        ssize_t rn = 0;
-
-        // Read character from user input (1 Byte):
-        rn = read(STDIN_FILENO, &ch, 1);
-        if (rn <= 0) return false;
-
-        // Special characters functions:
-        if ((ch == '\r') || (ch == '\n')){
-            // Enter key:
-            break;
-        }
-
-        if ((ch == 127) || (ch == '\b')){
-            // Backspace key:
-            continue;
-        }
-
-        if (ch == '\x1b'){
-            // Escape sequence:
-            char seq[2];
-            if ((rn = read(STDIN_FILENO, &seq[0], 1)) == 0) continue;
-            if (rn < 0) return false;
-
-            if ((rn = read(STDIN_FILENO, &seq[1], 1)) == 0) continue;
-            if (rn < 0) return false;
-
-            // Up arrow:
-            if ((seq[0] == '[') && (seq[1] == 'A')) {}
-
-            // Down arrow:
-            if ((seq[0] == '[') && (seq[1] == 'B')) {}
-
-            continue;
-        }
-
-        if (isprint(ch)){
-            // Printable character:
-            continue;
-        }
-    }
-
-
-    // Move the previous input to input log:
-    if (dmcli_io->input){
-        // In case the input log is full, deallocate the older input log:
-        if (dmcli_io->ilog_length == dmcli_io->ilog_capacity) free(dmcli_io->ilog[dmcli_io->ilog_capacity-1]);
-
-        // Move all the input logs one to the "right" (one older):
-        for (size_t i = dmcli_io->ilog_length; i > 0; i--){
-            dmcli_io->ilog[i] = dmcli_io->ilog[i-1];
-        }
-
-        // Copy the last input to the input log first position (newer):
-        dmcli_io->ilog[0] = strdup(dmcli_io->input);
-    }
-
-    return true;
-}
-
-/* ---- INTERNAL - Helpers functions implementation --------------- */
 // ==== Terminal ctl:
 /*
     @brief Function to enable terminal raw mode.
@@ -395,7 +308,7 @@ bool dmcli_wait4input(dmcli_io_pt dmcli_io){
     @retval true: If enable succeeded.
     @retval false: If enable failed.
 */
-bool _dmcli_helper_enterm_rawmode(dmcli_io_pt dmcli_io){
+bool dmcli_io_enterm_rawmode(dmcli_io_pt dmcli_io){
     // Check references and current mode:
     if (!dmcli_io || dmcli_io->is_raw) return false;
 
@@ -423,7 +336,7 @@ bool _dmcli_helper_enterm_rawmode(dmcli_io_pt dmcli_io){
     @retval true: If disable succeeded.
     @retval false: If disable failed
 */
-bool _dmcli_helper_disterm_rawmode(dmcli_io_pt dmcli_io){
+bool dmcli_io_disterm_rawmode(dmcli_io_pt dmcli_io){
     // Check references and current mode:
     if (!dmcli_io || !dmcli_io->is_raw) return false;
 
@@ -435,7 +348,203 @@ bool _dmcli_helper_disterm_rawmode(dmcli_io_pt dmcli_io){
     return true;
 }
 
+
+// ==== Utils:
+/*
+    @brief Function that blocks and waits for user input (\n) and process it to be accessible and
+    register to the input log.
+
+    @param dmcli_io_pt dmcli_io: Reference to dmcli_io structure.
+
+    @return true: If everything was correct.
+    @return false: If failed midway.
+*/
+bool dmcli_io_wait4input(dmcli_io_pt dmcli_io){
+    // Reference check: 
+    if (!dmcli_io) return false;
+
+    // Raw mode check (only works if raw mode is active):
+    if (!dmcli_io->is_raw) return false;
+
+    // Clear the input buffer:
+    memset(dmcli_io->input, '\0', dmcli_io->input_capacity);
+    dmcli_io->input_length = 0;
+    dmcli_io->input_cursor = 0;
+
+    // Show prompt:
+    printf("%s", dmcli_io->prompt);
+    fflush(stdout);
+
+    // Read/Write from the user (until '\n' is pressed):
+    size_t ilog_index = 0;
+    while (true){
+        // Char pressed & read number local variables:
+        char ch = '\0';
+        ssize_t rn = 0;
+
+        // Read character from user input (1 Byte):
+        rn = read(STDIN_FILENO, &ch, 1);
+        if (rn <= 0) return false;
+
+        // Special characters functions:
+        if ((ch == '\r') || (ch == '\n')){
+            // Enter key:
+            printf("\n");
+            break;
+        }
+
+        if ((ch == 127) || (ch == '\b')){
+            // Backspace key:
+            _dmcli_helper_inbackspace(dmcli_io);
+            continue;
+        }
+
+        if (ch == '\x1b'){
+            // Escape sequence:
+            char seq[2];
+            if ((rn = read(STDIN_FILENO, &seq[0], 1)) == 0) continue;
+            if (rn < 0) return false;
+
+            if ((rn = read(STDIN_FILENO, &seq[1], 1)) == 0) continue;
+            if (rn < 0) return false;
+
+            // Up arrow:
+            if ((seq[0] == '[') && (seq[1] == 'A')) {
+                if (dmcli_io->ilog_length == 0) continue;
+                _dmcli_helper_inilogset(dmcli_io, dmcli_io->ilog[ilog_index]);
+                if ((ilog_index + 1) < dmcli_io->ilog_length) ilog_index++;
+            }
+
+            // Down arrow:
+            if ((seq[0] == '[') && (seq[1] == 'B')) {
+                if (dmcli_io->ilog_length == 0) continue;
+                if (ilog_index == 0) {_dmcli_helper_inilogset(dmcli_io, ""); continue;}
+                if (ilog_index > 0) {ilog_index--; _dmcli_helper_inilogset(dmcli_io, dmcli_io->ilog[ilog_index]);}
+            }
+
+            // Right arrow:
+            if ((seq[0] == '[') && (seq[1] == 'C')) {
+                if (dmcli_io->input_cursor >= dmcli_io->input_length) continue;
+                dmcli_io->input_cursor++;
+                _dmcli_helper_inredraw(dmcli_io);         
+            }
+
+            // Left arrow: 
+            if ((seq[0] == '[') && (seq[1] == 'D')) {
+                if (dmcli_io->input_cursor == 0) continue;
+                dmcli_io->input_cursor--;
+                _dmcli_helper_inredraw(dmcli_io);
+            }
+
+            continue;
+        }
+
+        if (isprint(ch)){
+            // Printable character:
+            _dmcli_helper_inprintable(dmcli_io, ch);
+            continue;
+        }
+    }
+
+
+    // Move the input to input log first position:
+    if (dmcli_io->input && strcmp(dmcli_io->input, "")){
+        // In case the input log is full, deallocate the older input log:
+        if (dmcli_io->ilog_length == dmcli_io->ilog_capacity) free(dmcli_io->ilog[dmcli_io->ilog_capacity-1]);
+
+        // Move all the input logs one to the "right" (one older):
+        for (size_t i = dmcli_io->ilog_length; i > 0; i--){
+            dmcli_io->ilog[i] = dmcli_io->ilog[i-1];
+        }
+
+        // Copy the last input to the input log first position (newer):
+        dmcli_io->ilog[0] = strdup(dmcli_io->input);
+        dmcli_io->ilog_length++;
+    }
+
+    return true;
+}
+
+/* ---- INTERNAL - Helpers functions implementation --------------- */
 // ==== Input ctl:
 /*
+    @brief Helper function that implements the backspace input process of wait4read function.
+    @note: No checks needed in helper function, checks are assumed by the caller.
 
+    @param dmcli_io_pt dmcli_io: Reference to dmcli_io structure.
 */
+void _dmcli_helper_inbackspace(dmcli_io_pt dmcli_io){
+    // If input lenght is already 0, do nothing:
+    if (dmcli_io->input_length == 0) return;
+
+    // Shift chars to the left from the cursor position:
+    for (size_t i = dmcli_io->input_cursor - 1; i < dmcli_io->input_length - 1; i++){
+        dmcli_io->input[i] = dmcli_io->input[i + 1];
+    }
+
+    // Remove character from input and decrement length:
+    dmcli_io->input[--dmcli_io->input_length] = '\0';
+    dmcli_io->input_cursor--;
+
+    // Draw the new line and move the cursor to position:
+    _dmcli_helper_inredraw(dmcli_io);
+}
+
+/*
+    @brief Helper function that draws the input line with a completly new input_str.
+    @note: Some checks aren't needed in helper function, checks are assumed by the caller.
+    @note: Thought to work with input log!
+
+    @param dmcli_io_pt dmcli_io: Reference to dmcli_io structure.
+*/
+void _dmcli_helper_inilogset(dmcli_io_pt dmcli_io, const char * input_str){
+    // Clear of the current input:
+    memset(dmcli_io->input, '\0', dmcli_io->input_capacity);
+    dmcli_io->input_length = 0;
+
+    // Copy the new input string to the input string:
+    if (input_str){
+        memcpy(dmcli_io->input, input_str, dmcli_io->input_capacity);
+        dmcli_io->input_length = strlen(dmcli_io->input);
+    }
+
+    // Reset cursor:
+    dmcli_io->input_cursor = dmcli_io->input_length;
+
+    // Draw new line into terminal:
+    printf("\r\033[K%s%s", dmcli_io->prompt, dmcli_io->input);
+    fflush(stdout);
+}
+
+/*
+    @brief Helper function that appends the typed character into the input buffer.
+    @note: Some checks aren't needed in helper function, checks are assumed by the caller.
+
+    @param dmcli_io_pt dmcli_io: Reference to dmcli_io structure.
+*/
+void _dmcli_helper_inprintable(dmcli_io_pt dmcli_io, char c){
+    // Ignore printable in case of overflow:
+    if ((dmcli_io->input_length + 1) > dmcli_io->input_capacity) return;
+
+    // Shift character to the right of the cursor position:
+    for (size_t i = dmcli_io->input_length + 1; i > dmcli_io->input_cursor; i--){
+        dmcli_io->input[i] = dmcli_io->input[i - 1];
+    }
+
+    // Copy the typed character into the input string at cursor position:
+    dmcli_io->input[++dmcli_io->input_length] = '\0';
+    dmcli_io->input[dmcli_io->input_cursor++] = c;
+
+    // Draw the new input and move the cursor to it's position:
+    _dmcli_helper_inredraw(dmcli_io);
+}
+
+void _dmcli_helper_inredraw(dmcli_io_pt dmcli_io) {
+    // Move to beginning, clear the line, print prompt + input
+    printf("\r\033[K%s%s", dmcli_io->prompt, dmcli_io->input);
+    
+    // Move cursor to correct position
+    size_t pos_from_end = dmcli_io->input_length - dmcli_io->input_cursor;
+    if (pos_from_end != 0) printf("\033[%zuD", pos_from_end);
+    fflush(stdout);
+}
