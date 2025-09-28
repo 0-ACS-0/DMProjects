@@ -4,64 +4,11 @@
 
 /* ---- Libraries ------------------------------------------------- */
 #include "../inc/dmcli_cmd.h"
-#include <stdbool.h>
-#include <string.h>
-
-/* ---- Helper functions implementation prototypes ---------------- */
 
 /* ---- INTERNAL - Functions implementation ----------------------- */
-// ======== Allocators:
-/*
-    @brief Function to allocate all the memory and prepare dmcli_cmd to be used with default
-    configuration.
-    @note For errors check dmcli_cmd pointer.
-
-    @param dmcli_cmd_pt * dmcli_cmd: Reference to dmcli_cmd struct pointer.
-*/
-void dmcli_cmd_alloc(dmcli_cmd_pt * dmcli_cmd){
-    // Reference check:
-    if (!dmcli_cmd) return;
-
-    // Structure allocation:
-    *dmcli_cmd = calloc(1, sizeof(dmcli_cmd_t));
-    if (!(*dmcli_cmd)) return;
-
-    // Allocation of defaults:
-    if (!dmcli_cmd_set_default(*dmcli_cmd)){
-        free(*dmcli_cmd);
-        *dmcli_cmd = NULL;
-    }
-}
-
-/*
-    @brief Function to deallocate all the memory reserved for dmcli_cmd structure.
-
-    @param dmcli_cmd_pt * dmcli_cmd: Reference to dmcli_cmd struct pointer.
-*/
-void dmcli_cmd_dealloc(dmcli_cmd_pt * dmcli_cmd){
-    // Reference check:
-    if (!dmcli_cmd || !(*dmcli_cmd)) return;
-
-    // Deallocation of all the commands names:
-    for (size_t i = 0; i < (*dmcli_cmd)->cmds_capacity; i++){
-        if ((*dmcli_cmd)->cmds && (*dmcli_cmd)->cmds[i]) free((*dmcli_cmd)->cmds[i]);
-        if ((*dmcli_cmd)->cmds_descs && (*dmcli_cmd)->cmds_descs[i]) free((*dmcli_cmd)->cmds_descs[i]);
-    }
-    if ((*dmcli_cmd)->cmds) free((*dmcli_cmd)->cmds);
-    if ((*dmcli_cmd)->cmds_descs) free((*dmcli_cmd)->cmds_descs);
-
-    // Deallocation of the function pointer array:
-    if ((*dmcli_cmd)->cmds_fn) free((*dmcli_cmd)->cmds_fn);
-
-    // Global deallocation:
-    free(*dmcli_cmd);
-    *dmcli_cmd = NULL;
-}
-
-
 // ======== "Setters" & "Getters":
 /*
-    @brief Function to set the default configuration of dmcli_cmd.
+    @brief Function to set default values to the members.
 
     @param dmcli_cmd_pt dmcli_cmd: Reference to dmcli_cmd structure.
 
@@ -72,36 +19,9 @@ bool dmcli_cmd_set_default(dmcli_cmd_pt dmcli_cmd){
     // Reference check:
     if (!dmcli_cmd) return false;
 
-    // Default calls:
-    bool ret = true;
-    ret &= dmcli_cmd_set_cap(dmcli_cmd, DEFAULT_CMD_CAP);
+    // Set the commands capacity:
+    dmcli_cmd->cmds_capacity = DEFAULT_CMD_CAP;
 
-    return ret;
-}
-
-/*
-    @brief Function to set the commands capacity of the structure, allocating it's memory.
-
-    @param dmcli_cmd_pt dmcli_cmd: Reference to dmcli_cmd structure.
-
-    @retval true: If set succeeded.
-    @retval false: If set failed.
-*/
-bool dmcli_cmd_set_cap(dmcli_cmd_pt dmcli_cmd, size_t capacity){
-    // Reference check:
-    if (!dmcli_cmd || (capacity == 0)) return false;
-
-    // Allocate all the memory:
-    dmcli_cmd->cmds = calloc(capacity, sizeof(char *));
-    if (!dmcli_cmd->cmds) return false;
-    dmcli_cmd->cmds_descs = calloc(capacity, sizeof(char *));
-    if (!dmcli_cmd->cmds_descs) {free(dmcli_cmd->cmds); return false;}
-    dmcli_cmd->cmds_fn = calloc(capacity, sizeof(void (*)(void *)));
-    if (!dmcli_cmd->cmds_fn) {free(dmcli_cmd->cmds_descs); free(dmcli_cmd->cmds); return false;}
-
-    // Set capacity and length:
-    dmcli_cmd->cmds_capacity = capacity;
-    dmcli_cmd->cmds_length = 0;
     return true;
 }
 
@@ -119,9 +39,28 @@ bool dmcli_cmd_set_udata(dmcli_cmd_pt dmcli_cmd, void * udata_ref){
     if (!dmcli_cmd || !udata_ref) return false;
 
     // Reference copy:
-    dmcli_cmd->udata = udata_ref;
+    dmcli_cmd->cdata.udata = udata_ref;
     return true;
 }
+
+/*
+    @brief Function to set the custom extra data reference into the command structure.
+
+    @param dmcli_cmd_pt dmcli_cmd: Reference to dmcli_cmd structure.
+    @param void * udata_ref: User data reference (no type specification needed).
+
+    @retval true: If set succeeded.
+    @retval false: If set failed.
+*/
+bool dmcli_cmd_set_exdata(dmcli_cmd_pt dmcli_cmd, void * exdata_ref){
+    // References check:
+    if (!dmcli_cmd || !exdata_ref) return false;
+
+    // Reference copy:
+    dmcli_cmd->cdata.exdata = exdata_ref;
+    return true;
+}
+
 
 /*
     @brief Function to set a command name, description, and associated command function to execute when called.
@@ -138,12 +77,12 @@ bool dmcli_cmd_set_command(dmcli_cmd_pt dmcli_cmd, const char * cmd_name, const 
     // References & bounds check:
     if (!dmcli_cmd || !cmd_name || !cmd_desc || !cmd_fn) return false;
     if (dmcli_cmd->cmds_length + 1 > dmcli_cmd->cmds_capacity) return false;
+    if (strlen(cmd_name) >= DEFAULT_CMD_NAME_LEN) return false;
+    if (strlen(cmd_desc) >= DEFAULT_CMD_DESC_LEN) return false;
 
     // Copy the command name and description into memory:
-    dmcli_cmd->cmds[dmcli_cmd->cmds_length] = strdup(cmd_name);
-    if (!dmcli_cmd->cmds[dmcli_cmd->cmds_length]) return false;
-    dmcli_cmd->cmds_descs[dmcli_cmd->cmds_length] = strdup(cmd_desc);
-    if (!dmcli_cmd->cmds_descs[dmcli_cmd->cmds_length]) {free(dmcli_cmd->cmds[dmcli_cmd->cmds_length]); dmcli_cmd->cmds[dmcli_cmd->cmds_length] = NULL; return false;}
+    strncpy(dmcli_cmd->cmds[dmcli_cmd->cmds_length], cmd_name, DEFAULT_CMD_NAME_LEN);
+    strncpy(dmcli_cmd->cmds_descs[dmcli_cmd->cmds_length], cmd_desc, DEFAULT_CMD_DESC_LEN);
 
     // Copy the function reference of the command:
     dmcli_cmd->cmds_fn[dmcli_cmd->cmds_length] = cmd_fn;
@@ -195,8 +134,24 @@ void * dmcli_cmd_get_udata(dmcli_cmd_pt dmcli_cmd){
     if (!dmcli_cmd) return NULL;
 
     // Return reference:
-    return dmcli_cmd->udata;
+    return dmcli_cmd->cdata.udata;
 }
+
+/*
+    @brief Function to retreive the reference of the extra data.
+
+    @param dmcli_cmd_pt dmcli_cmd: Reference to dmcli_cmd structure.
+
+    @return void *: Reference of the user data.
+*/
+void * dmcli_cmd_get_exdata(dmcli_cmd_pt dmcli_cmd){
+    // Reference check:
+    if (!dmcli_cmd) return NULL;
+
+    // Return reference:
+    return dmcli_cmd->cdata.exdata;
+}
+
 
 // ======== Utils:
 /*
@@ -223,6 +178,7 @@ bool dmcli_cmd_execute(dmcli_cmd_pt dmcli_cmd, const char * cmd){
     if (cmd_index == -1) return false;
 
     // Command function execution:
-    if (dmcli_cmd->cmds_fn[cmd_index]) dmcli_cmd->cmds_fn[cmd_index](dmcli_cmd->udata);
+    if (dmcli_cmd->cmds_fn[cmd_index]) dmcli_cmd->cmds_fn[cmd_index](&dmcli_cmd->cdata);
     return true;
 }
+

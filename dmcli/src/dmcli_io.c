@@ -13,66 +13,6 @@ void _dmcli_helper_inprintable(dmcli_io_pt dmcli_io, char c);
 void _dmcli_helper_inredraw(dmcli_io_pt dmcli_io);
 
 /* ---- INTERNAL - Functions implementation ----------------------- */
-// ======== Allocators:
-/*
-    @brief Function to allocate and prepare the structure dmcli_io to defaults for its use.
-
-    @param dmcli_io_pt dmcli_io: Reference to dmcli_io structure.
-
-    @retval true: If allocation succeeded.
-    @retval false: If allocation failed.
-*/
-void dmcli_io_alloc(dmcli_io_pt * dmcli_io){
-    // Reference check:
-    if (!dmcli_io) return;
-
-    // Structure allocation:
-    *dmcli_io = calloc(1, sizeof(dmcli_io_t));
-    if (!(*dmcli_io)) return;
-
-    // Allocation of defaults:
-    if (!dmcli_io_set_default(*dmcli_io)){
-        free(*dmcli_io);
-        *dmcli_io = NULL;
-    }
-}
-
-/*
-    @brief Function to deallocate all the memory reserved for dmcli_io, reseting all the values to invalid or
-    default.
-
-    @param dmcli_io_pt dmcli_io: Reference to dmcli_io.
-
-    @retval true: if deallocation succeeded.
-    @retval false: if deallocation failed.
-*/
-void dmcli_io_dealloc(dmcli_io_pt * dmcli_io){
-    // Check references:
-    if (!dmcli_io || !(*dmcli_io)) return;
-
-    // Deallocation of the prompt string if set.
-    if ((*dmcli_io)->prompt) {free((*dmcli_io)->prompt); (*dmcli_io)->prompt = NULL;}
-
-    // Deallocation of the input string if set.
-    if ((*dmcli_io)->input) {free((*dmcli_io)->input); (*dmcli_io)->input = NULL;}
-
-    // Deallocation of all the input log:
-    for (size_t i = 0; i < (*dmcli_io)->ilog_capacity; i++){
-        if ((*dmcli_io)->ilog && (*dmcli_io)->ilog[i]) {free((*dmcli_io)->ilog[i]); (*dmcli_io)->ilog[i] = NULL;}
-    }
-    if ((*dmcli_io)->ilog) {free((*dmcli_io)->ilog); (*dmcli_io)->ilog = NULL;}
-
-    // Reset input log capacity to default:
-    (*dmcli_io)->ilog_capacity = 0;
-    (*dmcli_io)->ilog_length = 0;
-
-    // Deallocate the io structure completly:
-    free(*dmcli_io);
-    *dmcli_io = NULL;
-
-    return;
-}
-
 // ==== "Getters" & "Setters":
 /*
     @brief Function to set the prompt and the input log length to default values.
@@ -86,40 +26,20 @@ bool dmcli_io_set_default(dmcli_io_pt dmcli_io){
     // Reference check:
     if (!dmcli_io) return false;
 
-    // Default prompt and ilog length:
-    bool ret = true;
-    ret &= dmcli_io_set_inputcap(dmcli_io, DEFAULT_IO_INPUT_CAP);
-    ret &= dmcli_io_set_prompt(dmcli_io, DEFAULT_IO_PROMPT_STRING);
-    ret &= dmcli_io_set_ilogcap(dmcli_io, DEFAULT_IO_ILOG_CAP); 
-
-    return ret;
-}
-
-/*
-    @brief Function to set the input capacity.
-
-    @param dmcli_io_pt dmcli_io: Reference to dmcli_io structure.
-    @param size_t input_capacity: Capacity allowed for the user input.
-
-    @retval true: If allocation succeeded.
-    @retval false: If allocation failed.
-*/
-bool dmcli_io_set_inputcap(dmcli_io_pt dmcli_io, size_t input_capacity){
-    // References check:
-    if (!dmcli_io) return false;
-
-    // Deallocate previous input capacity (if allocated):
-    if (dmcli_io->input) free(dmcli_io->input);
-
-    // Allocate the memory for user input:
-    dmcli_io->input = calloc(input_capacity, sizeof(char));
-    if (!dmcli_io->input) return false;
-
-    // Set the capacity, length and cursor:
-    dmcli_io->input_capacity = input_capacity;
+    // All members to default values:
+    dmcli_io->prompt_capacity = DEFAULT_IO_PROMPT_CAP;
+    dmcli_io->prompt_length = 0;
+    dmcli_io->input_capacity = DEFAULT_IO_INPUT_CAP;
     dmcli_io->input_length = 0;
     dmcli_io->input_cursor = 0;
-    return true;
+    dmcli_io->ilog_capacity = DEFAULT_IO_ILOG_CAP;
+    dmcli_io->ilog_length = 0;
+
+    // Default prompt set:
+    bool ret = true;
+    ret &= dmcli_io_set_prompt(dmcli_io, DEFAULT_IO_PROMPT_STRING);
+
+    return ret;
 }
 
 /*
@@ -134,50 +54,13 @@ bool dmcli_io_set_inputcap(dmcli_io_pt dmcli_io, size_t input_capacity){
     @retval false: If failed in setting the prompt.
 */
 bool dmcli_io_set_prompt(dmcli_io_pt dmcli_io, const char * prompt_str){
-    // References check:
+    // References & bounds check:
     if (!dmcli_io || !prompt_str) return false;
-
-    // Temporary allocation of the new prompt string:
-    char * temp_prompt = strdup(prompt_str);
-    if (!temp_prompt) return false;
+    if (strlen(prompt_str) >= DEFAULT_IO_PROMPT_CAP) return false;
 
     // Deallocation the old prompt memory and assignment (always) of the new prompt string:
-    if (dmcli_io->prompt) free(dmcli_io->prompt);
-    dmcli_io->prompt = temp_prompt;
-    dmcli_io->prompt_length = strlen(temp_prompt);
-
-    return true;
-}
-
-/*
-    @brief Function to establish the input log length (number of user input to register in memory).
-    
-    @param dmcli_io_pt dmcli_io: Reference to dmcli_io structure.
-    @param size_t ilog_capacity: Length of the new input log capacity.
-
-    @return true: If succeeded in setting the new ilog_length.
-    @return false: If failed in setting the new ilog_length.
-*/
-bool dmcli_io_set_ilogcap(dmcli_io_pt dmcli_io, size_t ilog_capacity){
-    // Reference check:
-    if (!dmcli_io) return false;
-
-    // Deallocates the previous input log:
-    for (size_t i = 0; i < dmcli_io->ilog_capacity; i++){
-        if (dmcli_io->ilog && dmcli_io->ilog[i]) {free(dmcli_io->ilog[i]); dmcli_io->ilog[i] = NULL;}
-    }
-    if (dmcli_io->ilog) {free(dmcli_io->ilog); dmcli_io->ilog = NULL;}
-
-    // Set the capacity value:
-    dmcli_io->ilog_capacity = ilog_capacity;
-    dmcli_io->ilog_length = 0;
-
-    // In case capacity is 0, is already done:
-    if (!ilog_capacity) return true;
-
-    // In case of capacity given, reserves the memory to allocate input strings:
-    dmcli_io->ilog = calloc(dmcli_io->ilog_capacity, sizeof(char *));
-    if (!dmcli_io->ilog) {dmcli_io->ilog_capacity = 0; return false;}
+    strcpy(dmcli_io->prompt, prompt_str);
+    dmcli_io->prompt_length = strlen(dmcli_io->prompt);
 
     return true;
 }
@@ -224,6 +107,20 @@ size_t dmcli_io_get_inputlen(dmcli_io_pt dmcli_io){
     if (!dmcli_io) return 0;
 
     return dmcli_io->input_length;
+}
+
+/*
+    @brief Function to retreive the actual input cursor position.
+
+    @param dmcli_io_pt dmcli_io: Reference to dmcli_io structure.
+
+    @retval size_t: Cursor position at input buffer.
+*/
+size_t dmcli_io_get_inputcur(dmcli_io_pt dmcli_io){
+    // Reference check:
+    if (!dmcli_io) return 0;
+
+    return dmcli_io->input_cursor;
 }
 
 
@@ -445,19 +342,17 @@ bool dmcli_io_wait4input(dmcli_io_pt dmcli_io){
 
 
     // Move the input to input log first position:
-    if (dmcli_io->input && strcmp(dmcli_io->input, "")){
-        // In case the input log is full, deallocate the older input log:
-        if (dmcli_io->ilog_length == dmcli_io->ilog_capacity) free(dmcli_io->ilog[dmcli_io->ilog_capacity-1]);
+    if (!strcmp(dmcli_io->input, "")) return true;
 
-        // Move all the input logs one to the "right" (one older):
-        for (size_t i = dmcli_io->ilog_length; i > 0; i--){
-            dmcli_io->ilog[i] = dmcli_io->ilog[i-1];
-        }
-
-        // Copy the last input to the input log first position (newer):
-        dmcli_io->ilog[0] = strdup(dmcli_io->input);
-        dmcli_io->ilog_length++;
+    // Move all the input logs one to the "right" (one older):
+    for (size_t i = dmcli_io->ilog_length; i > 0; i--){
+        strncpy(dmcli_io->ilog[i], dmcli_io->ilog[i - 1], DEFAULT_IO_INPUT_CAP);
     }
+
+    // Copy the last input to the input log first position (newer):
+    strncpy(dmcli_io->ilog[0], dmcli_io->input, DEFAULT_IO_INPUT_CAP);
+    dmcli_io->ilog_length++;
+    
 
     return true;
 }
@@ -472,7 +367,7 @@ bool dmcli_io_wait4input(dmcli_io_pt dmcli_io){
 */
 void _dmcli_helper_inbackspace(dmcli_io_pt dmcli_io){
     // If input lenght is already 0, do nothing:
-    if (dmcli_io->input_length == 0) return;
+    if (dmcli_io->input_cursor == 0) return;
 
     // Shift chars to the left from the cursor position:
     for (size_t i = dmcli_io->input_cursor - 1; i < dmcli_io->input_length - 1; i++){
