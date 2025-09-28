@@ -13,6 +13,8 @@
 #define DEFAULT_CMD_CAP 200
 #define DEFAULT_CMD_NAME_LEN 128
 #define DEFAULT_CMD_DESC_LEN 1024
+#define DEFAULT_CMD_ARGV_CAP 16
+#define DEFAULT_CMD_ARGV_LEN 64
 
 /* ---- Data structures ------------------------------------------- */
 // Simple dmcli conf structure (used externally for customized configuration functions only):
@@ -23,13 +25,15 @@ struct dmcli_cmd_conf{
 struct cmds_data{
     void * exdata;
     void * udata;
+    int argc;
+    char argv[DEFAULT_CMD_ARGV_LEN][DEFAULT_CMD_ARGV_LEN];
 };
 
 // Simple dmcli command structure:
 struct dmcli_cmd{
     char cmds[DEFAULT_CMD_CAP][DEFAULT_CMD_NAME_LEN];           // Array to all the commands strings available.
     char cmds_descs[DEFAULT_CMD_CAP][DEFAULT_CMD_DESC_LEN];     // Array to all the commands strings descriptions.
-    void (*cmds_fn[DEFAULT_CMD_CAP]) (void *);   // Array to functions corresponding to the commands available.
+    void (*cmds_fn[DEFAULT_CMD_CAP]) (struct cmds_data *);   // Array to functions corresponding to the commands available.
 
     struct cmds_data cdata; // Commands data.
 
@@ -56,7 +60,7 @@ bool dmcli_cmd_set_default(dmcli_cmd_pt dmcli_cmd);
 bool dmcli_cmd_set_udata(dmcli_cmd_pt dmcli_cmd, void * udata_ref);
 bool dmcli_cmd_set_exdata(dmcli_cmd_pt dmcli_cmd, void * exdata_ref);
 
-bool dmcli_cmd_set_command(dmcli_cmd_pt dmcli_cmd, const char * cmd_name, const char * cmd_desc, void (*cmd_fn)(void *));
+bool dmcli_cmd_set_command(dmcli_cmd_pt dmcli_cmd, const char * cmd_name, const char * cmd_desc, void (*cmd_fn)(cmds_data_pt));
 
 size_t dmcli_cmd_get_cap(dmcli_cmd_pt dmcli_cmd);
 size_t dmcli_cmd_get_len(dmcli_cmd_pt dmcli_cmd); 

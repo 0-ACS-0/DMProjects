@@ -6,11 +6,11 @@
 #include "../inc/dmcli.h"
 
 /* ---- Helper functions implementation prototypes ---------------- */
-void _dmcli_helper_helpcmd(void * cdata);
-void _dmcli_helper_exitcmd(void * cdata);
+void _dmcli_helper_helpcmd(cmds_data_pt cdata);
+void _dmcli_helper_exitcmd(cmds_data_pt cdata);
 
 /* ---- INTERNAL - Functions implementation ----------------------- */
-// ======== Init / Deinit:
+// ======== Init:
 /*
     @brief Function to initialize dmcli to be ready for its use, setting all to defaults.
 
@@ -63,6 +63,38 @@ void dmcli_loop(dmcli_pt dmcli){
     dmcli_io_disterm_rawmode(&dmcli->io);
 }
 
+// ======== CMD Add:
+/*
+    @brief Wrapper function to add a command to the command line interface.
+
+    @param dmcli_pt dmcli: Reference to dmcli structure.
+    @param const char * cmd_name: Command name string.
+    @param const char * cmd_desc: Command description string.
+    @param void (*cmd_fn)(void *): Command function reference.
+
+    @retval true: If add succeeded.
+    @retval false: If add failed.
+*/
+bool dmcli_add_cmd(dmcli_pt dmcli, const char * cmd_name, const char * cmd_desc, void (*cmd_fn)(cmds_data_pt)){
+    // Reference check:
+    if (!dmcli) return false;
+
+    // Add the new command:
+    bool ret = true;
+    ret &= dmcli_cmd_set_command(&dmcli->cmd, cmd_name, cmd_desc, cmd_fn);
+    return ret;
+}
+
+// ======== Settings:
+bool dmcli_conf_prompt(dmcli_pt dmcli, const char * prompt_str){
+    // References check:
+    if (!dmcli || !prompt_str) return false;
+
+    // Set the new prompt for the cli:
+    bool ret = true;
+    ret &= dmcli_io_set_prompt(&dmcli->io, prompt_str);
+    return ret;
+}
 
 /* ---- INTERNAL - Helper functions implementation ----------------------- */
 /*
@@ -72,11 +104,10 @@ void dmcli_loop(dmcli_pt dmcli){
     @param dmcli_cmd_pt dmcli_cmd: Reference to dmcli_cmd structure.
     @param void * data: Extra data available. 
 */
-void _dmcli_helper_helpcmd(void * cdata){
+void _dmcli_helper_helpcmd(cmds_data_pt cdata){
     // Reference check:
     if (!cdata) return;
-    cmds_data_pt cmds_data = (cmds_data_pt)cdata;
-    dmcli_pt cli = cmds_data->exdata;
+    dmcli_pt cli = cdata->exdata;
 
     // Print of commands and descriptions:
     printf("\n================ HELP \n");
@@ -94,11 +125,10 @@ void _dmcli_helper_helpcmd(void * cdata){
     @param dmcli_cmd_pt dmcli_cmd: Reference to dmcli_cmd structure.
     @param void * data: Extra data available. 
 */
-void _dmcli_helper_exitcmd(void * cdata){
+void _dmcli_helper_exitcmd(cmds_data_pt cdata){
     // Reference check:
     if (!cdata) return;
-    cmds_data_pt cmds_data = (cmds_data_pt)cdata;
-    dmcli_pt cli = cmds_data->exdata;
+    dmcli_pt cli = cdata->exdata;
 
     // End the loop:
     cli->is_running = false;
