@@ -63,39 +63,6 @@ void dmcli_loop(dmcli_pt dmcli){
     dmcli_io_disterm_rawmode(&dmcli->io);
 }
 
-// ======== CMD Add:
-/*
-    @brief Wrapper function to add a command to the command line interface.
-
-    @param dmcli_pt dmcli: Reference to dmcli structure.
-    @param const char * cmd_name: Command name string.
-    @param const char * cmd_desc: Command description string.
-    @param void (*cmd_fn)(void *): Command function reference.
-
-    @retval true: If add succeeded.
-    @retval false: If add failed.
-*/
-bool dmcli_add_cmd(dmcli_pt dmcli, const char * cmd_name, const char * cmd_desc, void (*cmd_fn)(cmds_data_pt)){
-    // Reference check:
-    if (!dmcli) return false;
-
-    // Add the new command:
-    bool ret = true;
-    ret &= dmcli_cmd_set_command(&dmcli->cmd, cmd_name, cmd_desc, cmd_fn);
-    return ret;
-}
-
-// ======== Settings:
-bool dmcli_conf_prompt(dmcli_pt dmcli, const char * prompt_str){
-    // References check:
-    if (!dmcli || !prompt_str) return false;
-
-    // Set the new prompt for the cli:
-    bool ret = true;
-    ret &= dmcli_io_set_prompt(&dmcli->io, prompt_str);
-    return ret;
-}
-
 /* ---- INTERNAL - Helper functions implementation ----------------------- */
 /*
     @brief Helper function that adds functionality to show a simple help output with all

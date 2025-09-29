@@ -46,10 +46,4 @@ bool dmcli_init(dmcli_pt dmcli);
 
 // CLI Loop:
 void dmcli_loop(dmcli_pt dmcli);
-
-// CMD Add:
-bool dmcli_add_cmd(dmcli_pt dmcli, const char * cmd_name, const char * cmd_desc, void (*cmd_fn)(cmds_data_pt));
-
-// Settings:
-bool dmcli_conf_prompt(dmcli_pt dmcli, const char * prompt_str);
 #endif

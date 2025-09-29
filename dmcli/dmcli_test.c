@@ -1,6 +1,4 @@
 #include "inc/dmcli.h"
-#include "inc/dmcli_cmd.h"
-#include "inc/dmcli_io.h"
 
 // Echo function!
 void echo_fn(cmds_data_pt cdata){
@@ -25,9 +23,9 @@ void subcli_fn(cmds_data_pt cdata){
 
    // Initialization, configuration and loop of subcli:
    dmcli_init(&subcli);
-   dmcli_conf_prompt(&subcli, prompt);
-   dmcli_add_cmd(&subcli, "echo", "Return the argument/s issued after the command.", echo_fn);
-   dmcli_add_cmd(&subcli, "subcli", "Starts a new client nested inside the previous subcli.", subcli_fn);
+   dmcli_io_set_prompt(&subcli.io, prompt);
+   dmcli_cmd_set_command(&subcli.cmd, "echo", "Return the argument/s issued after the command.", echo_fn);
+   dmcli_cmd_set_command(&subcli.cmd, "subcli", "Starts a new client nested inside the previous subcli.", subcli_fn);
    dmcli_loop(&subcli);
 }
 
@@ -38,11 +36,11 @@ int main(int argc, char ** argv){
    dmcli_init(&cli);
 
    // Configuration:
-   dmcli_conf_prompt(&cli, "cli $> ");
+   dmcli_io_set_prompt(&cli.io, "cli $> ");
 
    // Adding commands to cli:
-   dmcli_add_cmd(&cli, "echo", "Return the argument/s issued after the command.", echo_fn);
-   dmcli_add_cmd(&cli, "subcli", "Starts a new client nested inside the previous subcli.", subcli_fn);
+   dmcli_cmd_set_command(&cli.cmd, "echo", "Return the argument/s issued after the command.", echo_fn);
+   dmcli_cmd_set_command(&cli.cmd, "subcli", "Starts a new client nested inside the previous subcli.", subcli_fn);
    
    // Client loop:
    dmcli_loop(&cli);
