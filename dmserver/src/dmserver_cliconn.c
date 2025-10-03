@@ -32,8 +32,15 @@ bool _dmserver_cconn_init(struct dmserver_cliconn * c){
     if(!__dmserver_cconn_buf_alloc(c)) return false; 
 
     // Initialize mutex logic:
-    if(pthread_mutex_init(&c->crlock, NULL)) {__dmserver_cconn_buf_dealloc(c); return false;}
-    if(pthread_mutex_init(&c->cwlock, NULL)) {pthread_mutex_destroy(&c->crlock); return false;}
+    if(pthread_mutex_init(&c->crlock, NULL)) {
+        __dmserver_cconn_buf_dealloc(c);
+        return false;
+    }
+
+    if(pthread_mutex_init(&c->cwlock, NULL)) {
+        pthread_mutex_destroy(&c->crlock);
+        return false;
+    }
 
 
     // Initialize state:
@@ -103,7 +110,11 @@ bool _dmserver_cconn_set(struct dmserver_cliconn * c, dmserver_cliloc_pt cloc, i
         c->caddr.c4 = *addr4;
     } else if (caddr->ss_family == AF_INET6){
         struct sockaddr_in6 * addr6 = (struct sockaddr_in6 *)caddr;
-        if (IN6_IS_ADDR_V4MAPPED(&addr6->sin6_addr)) {c->caddr.c4.sin_family = AF_INET; c->caddr.c4.sin_port = addr6->sin6_port; memcpy(&c->caddr.c4.sin_addr, &addr6->sin6_addr.s6_addr[12], 4);}
+        if (IN6_IS_ADDR_V4MAPPED(&addr6->sin6_addr)) {
+            c->caddr.c4.sin_family = AF_INET;
+            c->caddr.c4.sin_port = addr6->sin6_port;
+            memcpy(&c->caddr.c4.sin_addr, &addr6->sin6_addr.s6_addr[12], 4);
+        }
         else c->caddr.c6 = *addr6;
     }
 
@@ -190,10 +201,16 @@ bool __dmserver_cconn_buf_alloc(dmserver_cliconn_pt c){
 
     // Allocate and assign memory for the read/write client buffers:
     c->crbuffer = calloc(c->crbuffer_size, sizeof(char));
-    if (!c->crbuffer) {__dmserver_cconn_buf_dealloc(c); return false;}
+    if (!c->crbuffer) {
+        __dmserver_cconn_buf_dealloc(c);
+        return false;
+    }
 
     c->cwbuffer = calloc(c->cwbuffer_size, sizeof(char));
-    if (!c->crbuffer) {__dmserver_cconn_buf_dealloc(c); return false;}
+    if (!c->crbuffer) {
+        __dmserver_cconn_buf_dealloc(c);
+        return false;
+    }
     return true;
 }
 

@@ -4,6 +4,7 @@
 
 /* ---- Library --------------------------------------------------- */
 #include "../inc/_dmserver_servconn.h"
+#include <sys/socket.h>
 
 /* ---- INTERNAL - Functions implementation ----------------------- */
 // ======== General use:
@@ -26,34 +27,47 @@ bool _dmserver_sconn_init(struct dmserver_servconn * s){
     // Socket configuration:
     int sopt;
     sopt = true;
-    if (setsockopt(s->sfd, SOL_SOCKET, SO_REUSEADDR, &sopt, sizeof(sopt)) < 0){_dmserver_sconn_deinit(s); return false;}
-    if (setsockopt(s->sfd, SOL_SOCKET, SO_REUSEPORT, &sopt, sizeof(sopt)) < 0){_dmserver_sconn_deinit(s); return false;}
+    if (setsockopt(s->sfd, SOL_SOCKET, SO_REUSEADDR, &sopt, sizeof(sopt)) < 0){
+        _dmserver_sconn_deinit(s);
+        return false;
+    }
+    if (setsockopt(s->sfd, SOL_SOCKET, SO_REUSEPORT, &sopt, sizeof(sopt)) < 0){
+        _dmserver_sconn_deinit(s);
+        return false;
+    }
+
     if (s->ssafamily == AF_INET6){
         sopt = s->ss6only;
-        if (setsockopt(s->sfd, IPPROTO_IPV6, IPV6_V6ONLY, &sopt, sizeof(sopt)) < 0) {_dmserver_sconn_deinit(s); return false;}
+        if (setsockopt(s->sfd, IPPROTO_IPV6, IPV6_V6ONLY, &sopt, sizeof(sopt)) < 0) {
+            _dmserver_sconn_deinit(s);
+            return false;
+        }
     }
 
     // Socket address structure & bind:
     memset(&s->saddr, 0, sizeof(s->saddr));
-    switch(s->ssafamily){
-        case AF_INET:
-            s->saddr.s4.sin_addr.s_addr = INADDR_ANY;
-            s->saddr.s4.sin_port = htons(s->sport);
-            s->saddr.s4.sin_family = s->ssafamily;
-            if (bind(s->sfd, (struct sockaddr *)&s->saddr.s4, sizeof(s->saddr.s4)) < 0){_dmserver_sconn_deinit(s); return false;}
-        break;
 
-        case AF_INET6:
-            s->saddr.s6.sin6_addr = in6addr_any;
-            s->saddr.s6.sin6_port = htons(s->sport);
-            s->saddr.s6.sin6_family = s->ssafamily;
-            if (bind(s->sfd, (struct sockaddr *)&s->saddr.s6, sizeof(s->saddr.s6)) < 0){_dmserver_sconn_deinit(s); return false;}
-        break;
-
-        default:
+    if (s->ssafamily == AF_INET){
+        s->saddr.s4.sin_addr.s_addr = INADDR_ANY;
+        s->saddr.s4.sin_port = htons(s->sport);
+        s->saddr.s4.sin_family = s->ssafamily;
+        if (bind(s->sfd, (struct sockaddr *)&s->saddr.s4, sizeof(s->saddr.s4)) < 0){
             _dmserver_sconn_deinit(s);
             return false;
+        }
+    } else if (s->ssafamily == AF_INET6){
+        s->saddr.s6.sin6_addr = in6addr_any;
+        s->saddr.s6.sin6_port = htons(s->sport);
+        s->saddr.s6.sin6_family = s->ssafamily;
+        if (bind(s->sfd, (struct sockaddr *)&s->saddr.s6, sizeof(s->saddr.s6)) < 0){
+            _dmserver_sconn_deinit(s);
+            return false;
+        }
+    } else {
+        _dmserver_sconn_deinit(s);
+        return false;
     }
+
     return true;
 }
 
@@ -70,7 +84,10 @@ bool _dmserver_sconn_deinit(struct dmserver_servconn * s){
     if (!s) return false;
 
     // Close server socket:
-    if (s->sfd >= 0) {close(s->sfd); s->sfd = -1;}
+    if (s->sfd >= 0) {
+        close(s->sfd);
+        s->sfd = -1;
+    }
     return true;
 }
 
@@ -89,7 +106,10 @@ bool _dmserver_sconn_sslinit(struct dmserver_servconn * s){
 
     // SSL lib initialization (only once per program!):
     static bool is_ssllib_initialized = false;
-    if (!is_ssllib_initialized) {OPENSSL_init_ssl(0, NULL); is_ssllib_initialized = true;}
+    if (!is_ssllib_initialized) {
+        OPENSSL_init_ssl(0, NULL);
+        is_ssllib_initialized = true;
+    }
     
     // SSL method TLS(bc tcp):
     s->sssl_method = TLS_server_method();
@@ -137,7 +157,10 @@ bool _dmserver_sconn_ssldeinit(struct dmserver_servconn * s){
     if (!s->sssl_enable) return false;
 
     // SSL context free:
-    if(s->sssl_ctx) {SSL_CTX_free(s->sssl_ctx); s->sssl_ctx = NULL;}
+    if(s->sssl_ctx) {
+        SSL_CTX_free(s->sssl_ctx);
+        s->sssl_ctx = NULL;
+    }
     return true;
 }
 

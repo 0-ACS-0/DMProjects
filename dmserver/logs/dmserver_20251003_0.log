@@ -1,0 +1,174 @@
+2025-10-03 10:37:11.265631454 | [INFO]: -------- DMServer initialization completed at (0x5ba4e8dad310).
+
+2025-10-03 10:37:11.268121801 | [INFO]: DMServer opening...
+2025-10-03 10:37:11.268158041 | [DEBUG]: dmserver_open() - server connection data initialized.
+2025-10-03 10:37:11.291878922 | [DEBUG]: dmserver_open() - server ssl data initialized.
+2025-10-03 10:37:11.291930267 | [DEBUG]: dmserver_open() - server listening, with a backlog of size 4096.
+2025-10-03 10:37:11.291945926 | [INFO]: DMServer open with address 0.0.0.0:7890.
+
+2025-10-03 10:37:11.291949397 | [INFO]: DMServer starting run...
+2025-10-03 10:37:11.292061355 | [DEBUG]: dmserver_run() - Launched subordinated thread -1526733120.
+2025-10-03 10:37:11.292145359 | [DEBUG]: dmserver_run() - Launched subordinated thread -1535125824.
+2025-10-03 10:37:11.292206963 | [DEBUG]: dmserver_run() - Launched subordinated thread -1551911232.
+2025-10-03 10:37:11.292275064 | [DEBUG]: dmserver_run() - Launched subordinated thread -1568696640.
+2025-10-03 10:37:11.292379232 | [DEBUG]: dmserver_run() - Launched subordinated thread -1593874752.
+2025-10-03 10:37:11.292449917 | [DEBUG]: dmserver_run() - Launched subordinated thread -1820334400.
+2025-10-03 10:37:11.292541172 | [DEBUG]: dmserver_run() - Launched subordinated thread -1828727104.
+2025-10-03 10:37:11.292603457 | [DEBUG]: dmserver_run() - Launched subordinated thread -1845512512.
+2025-10-03 10:37:11.292671373 | [DEBUG]: dmserver_run() - Launched main thread 2147481280.
+2025-10-03 10:37:11.292679370 | [INFO]: DMServer running.
+
+2025-10-03 10:37:55.244974388 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TCP ok.
+2025-10-03 10:37:55.245090962 | [DEBUG]: _dmserver_worker_main() - Client 14 assigned to point (0, 0).
+2025-10-03 10:37:55.312278947 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TLS ok.
+2025-10-03 10:37:55.312315788 | [INFO]: Client 14 with address 127.0.0.1:57164 connected to server.
+
+2025-10-03 10:37:59.934268819 | [DEBUG]: Read of 5 bytes from client 14.
+
+2025-10-03 10:37:59.934303729 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:37:59.934311646 | [DEBUG]: Unicast queued.
+2025-10-03 10:37:59.934315500 | [INFO]: Unicast finalized.
+
+2025-10-03 10:37:59.934375749 | [DEBUG]: Write of 5 bytes from client 14.
+
+2025-10-03 10:38:11.604073199 | [INFO]: DMServer stopping...
+2025-10-03 10:38:11.944342213 | [INFO]: Disconnected client 14.
+
+2025-10-03 10:38:15.260235846 | [DEBUG]: dmserver_stop() - Stopped main thread 2147481280.
+2025-10-03 10:38:15.260257249 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1526733120.
+2025-10-03 10:38:15.343855454 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1535125824.
+2025-10-03 10:38:15.343913056 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1551911232.
+2025-10-03 10:38:15.343952891 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1568696640.
+2025-10-03 10:38:15.343977120 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1593874752.
+2025-10-03 10:38:15.344009662 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1820334400.
+2025-10-03 10:38:15.344047451 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1828727104.
+2025-10-03 10:38:15.344080917 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1845512512.
+2025-10-03 10:38:15.344089739 | [INFO]: DMServer stopped.
+
+2025-10-03 10:38:15.344096011 | [INFO]: DMServer closing...
+2025-10-03 10:38:15.344129781 | [DEBUG]: dmserver_close() - server connection data deinitialized.
+2025-10-03 10:38:15.344224131 | [DEBUG]: dmserver_close() - server ssl data deinitialized.
+2025-10-03 10:38:15.344234817 | [INFO]: DMServer closed.
+
+2025-10-03 10:38:15.344793768 | [INFO]: -------- DMServer at (0x5ba4e8dad310) deinitialized.
+
+2025-10-03 10:38:24.953862653 | [INFO]: -------- DMServer initialization completed at (0x5bef03429310).
+
+2025-10-03 10:38:24.955172940 | [INFO]: DMServer opening...
+2025-10-03 10:38:24.955208577 | [DEBUG]: dmserver_open() - server connection data initialized.
+2025-10-03 10:38:24.957660448 | [DEBUG]: dmserver_open() - server ssl data initialized.
+2025-10-03 10:38:24.957677050 | [DEBUG]: dmserver_open() - server listening, with a backlog of size 4096.
+2025-10-03 10:38:24.957684669 | [INFO]: DMServer open with address 0.0.0.0:7890.
+
+2025-10-03 10:38:24.957687047 | [INFO]: DMServer starting run...
+2025-10-03 10:38:24.957744569 | [DEBUG]: dmserver_run() - Launched subordinated thread -1690310976.
+2025-10-03 10:38:24.957889831 | [DEBUG]: dmserver_run() - Launched subordinated thread -1698703680.
+2025-10-03 10:38:24.957916215 | [DEBUG]: dmserver_run() - Launched subordinated thread -1715489088.
+2025-10-03 10:38:24.957967788 | [DEBUG]: dmserver_run() - Launched subordinated thread -1723881792.
+2025-10-03 10:38:24.958003558 | [DEBUG]: dmserver_run() - Launched subordinated thread -1820334400.
+2025-10-03 10:38:24.958043204 | [DEBUG]: dmserver_run() - Launched subordinated thread -1828727104.
+2025-10-03 10:38:24.958065018 | [DEBUG]: dmserver_run() - Launched subordinated thread -1837119808.
+2025-10-03 10:38:24.958094325 | [DEBUG]: dmserver_run() - Launched subordinated thread -1845512512.
+2025-10-03 10:38:24.958152552 | [DEBUG]: dmserver_run() - Launched main thread -1954552128.
+2025-10-03 10:38:24.958156157 | [INFO]: DMServer running.
+
+2025-10-03 10:38:27.866419559 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TCP ok.
+2025-10-03 10:38:27.866547619 | [DEBUG]: _dmserver_worker_main() - Client 14 assigned to point (0, 0).
+2025-10-03 10:38:27.872364210 | [DEBUG]: _dmserver_worker_main() - Client 14 connection stage TLS ok.
+2025-10-03 10:38:27.872407809 | [INFO]: Client 14 with address 127.0.0.1:54234 connected to server.
+
+2025-10-03 10:38:38.373085392 | [DEBUG]: Read of 6 bytes from client 14.
+
+2025-10-03 10:38:38.373131553 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:38:38.373142216 | [DEBUG]: Unicast queued.
+2025-10-03 10:38:38.373148283 | [INFO]: Unicast finalized.
+
+2025-10-03 10:38:38.373228013 | [DEBUG]: Write of 6 bytes from client 14.
+
+2025-10-03 10:38:45.096142512 | [DEBUG]: Read of 39 bytes from client 14.
+
+2025-10-03 10:38:45.096178864 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:38:45.096186328 | [DEBUG]: Unicast queued.
+2025-10-03 10:38:45.096189989 | [INFO]: Unicast finalized.
+
+2025-10-03 10:38:45.096254718 | [DEBUG]: Write of 39 bytes from client 14.
+
+2025-10-03 10:38:52.486249335 | [DEBUG]: Read of 17 bytes from client 14.
+
+2025-10-03 10:38:52.486289289 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:38:52.486297599 | [DEBUG]: Unicast queued.
+2025-10-03 10:38:52.486301565 | [INFO]: Unicast finalized.
+
+2025-10-03 10:38:52.486342035 | [DEBUG]: Read of 39 bytes from client 14.
+
+2025-10-03 10:38:52.486355859 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:38:52.486365234 | [DEBUG]: Unicast queued.
+2025-10-03 10:38:52.486371245 | [INFO]: Unicast finalized.
+
+2025-10-03 10:38:52.486444326 | [DEBUG]: Write of 39 bytes from client 14.
+
+2025-10-03 10:39:27.754704346 | [DEBUG]: Read of 18 bytes from client 14.
+
+2025-10-03 10:39:27.754741603 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:39:27.754749769 | [DEBUG]: Unicast queued.
+2025-10-03 10:39:27.754753919 | [INFO]: Unicast finalized.
+
+2025-10-03 10:39:27.754792545 | [DEBUG]: Read of 39 bytes from client 14.
+
+2025-10-03 10:39:27.754797276 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:39:27.754802229 | [DEBUG]: Unicast queued.
+2025-10-03 10:39:27.754805778 | [INFO]: Unicast finalized.
+
+2025-10-03 10:39:27.754860715 | [DEBUG]: Write of 39 bytes from client 14.
+
+2025-10-03 10:39:41.463455627 | [DEBUG]: Read of 39 bytes from client 14.
+
+2025-10-03 10:39:41.463504637 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:39:41.463514638 | [DEBUG]: Unicast queued.
+2025-10-03 10:39:41.463519681 | [INFO]: Unicast finalized.
+
+2025-10-03 10:39:41.463528340 | [DEBUG]: Read of 3 bytes from client 14.
+
+2025-10-03 10:39:41.463533816 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:39:41.463539783 | [DEBUG]: Unicast queued.
+2025-10-03 10:39:41.463544383 | [INFO]: Unicast finalized.
+
+2025-10-03 10:39:41.463620467 | [DEBUG]: Write of 3 bytes from client 14.
+
+2025-10-03 10:39:41.463655968 | [DEBUG]: Read of 1 bytes from client 14.
+
+2025-10-03 10:39:41.463664383 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:39:41.463671972 | [DEBUG]: Unicast queued.
+2025-10-03 10:39:41.463678039 | [INFO]: Unicast finalized.
+
+2025-10-03 10:39:41.463708437 | [DEBUG]: Write of 1 bytes from client 14.
+
+2025-10-03 10:39:51.099312126 | [DEBUG]: Read of 1 bytes from client 14.
+
+2025-10-03 10:39:51.099348114 | [INFO]: Starting unicast to client 14...
+2025-10-03 10:39:51.099359432 | [DEBUG]: Unicast queued.
+2025-10-03 10:39:51.099364967 | [INFO]: Unicast finalized.
+
+2025-10-03 10:39:51.099441599 | [DEBUG]: Write of 1 bytes from client 14.
+
+2025-10-03 10:40:17.683031882 | [INFO]: DMServer stopping...
+2025-10-03 10:40:19.124109548 | [INFO]: Disconnected client 14.
+
+2025-10-03 10:40:19.967863315 | [DEBUG]: dmserver_stop() - Stopped main thread -1954552128.
+2025-10-03 10:40:19.967901940 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1690310976.
+2025-10-03 10:40:21.047375575 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1698703680.
+2025-10-03 10:40:21.056997681 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1715489088.
+2025-10-03 10:40:21.057023413 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1723881792.
+2025-10-03 10:40:21.057852845 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1820334400.
+2025-10-03 10:40:21.057867440 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1828727104.
+2025-10-03 10:40:21.057879003 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1837119808.
+2025-10-03 10:40:21.057887561 | [DEBUG]: dmserver_stop() - Stopped subordinated thread -1845512512.
+2025-10-03 10:40:21.057889286 | [INFO]: DMServer stopped.
+
+2025-10-03 10:40:21.057891885 | [INFO]: DMServer closing...
+2025-10-03 10:40:21.057909678 | [DEBUG]: dmserver_close() - server connection data deinitialized.
+2025-10-03 10:40:21.057958300 | [DEBUG]: dmserver_close() - server ssl data deinitialized.
+2025-10-03 10:40:21.057961218 | [INFO]: DMServer closed.
+
+2025-10-03 10:40:21.058065852 | [INFO]: -------- DMServer at (0x5bef03429310) deinitialized.
+

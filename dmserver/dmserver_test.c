@@ -6,10 +6,10 @@ dmserver_pt serv;
 // Echo function that unicast to the same client the data read from himself:
 void echo_fn(dmserver_cliconn_pt cli){
     // Reference check:
-    if (!cli) return;
+    if (!cli) return;   
 
     // Broadcast received data to all clients:
-    dmserver_broadcast(serv, &cli->cloc, cli->crbuffer);
+    dmserver_unicast(serv, &cli->cloc, cli->crbuffer);
 }
 
 // MAIN:
@@ -25,10 +25,10 @@ int main(int argc, char ** argv){
 
     // Server connection data configuration:
     if (!dmserver_conf_sconn(serv, &(dmserver_servconn_conf_t){
-        .sport=8080,
+        .sport=7890,
         .ssa_family=AF_INET,
         .sipv6_only=false,
-        .stls_enable=false,
+        .stls_enable=true,
         .scert_path="./certs/server.crt",
         .skey_path="./certs/server.key"
     })) exit(1);
@@ -42,8 +42,8 @@ int main(int argc, char ** argv){
 
     // Client buffers configuration:
     if (!dmserver_conf_cconn(serv, &(dmserver_cliconn_conf_t){
-        .cread_buffer_size = 4096,
-        .cwrite_buffer_size = 4096
+        .cread_buffer_size = 40,
+        .cwrite_buffer_size = 40
     })) exit(1);
 
     // Server callbacks set:
@@ -58,9 +58,9 @@ int main(int argc, char ** argv){
     // Simple program loop (cmd -> exit() / broadcast / unicast):
     char c[12] = "";
     char msg[4096] = "";
-    while (strcmp(c, "exit()")){
+    while (strcmp(c, "exit")){
         // Prompt and user input read:
-        printf("Finish server with 'exit()' call>> ");
+        printf("Finish server with 'exit' call>> ");
         fflush(stdout);
         fgets(c, 12, stdin);
         c[strlen(c) - 1] = '\0';

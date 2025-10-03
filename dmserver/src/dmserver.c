@@ -23,8 +23,15 @@ void dmserver_init(dmserver_pt * dmserver){
 
     // Dmserver-logger initialization (and run) to defaults:
     dmlogger_init(&(*dmserver)->slogger);
-    if (!(*dmserver)->slogger) {dmserver_deinit(dmserver); return;}
-    if (!dmlogger_run((*dmserver)->slogger)) {dmserver_deinit(dmserver); return;}
+    if (!(*dmserver)->slogger) {
+        dmserver_deinit(dmserver);
+        return;
+    }
+    
+    if (!dmlogger_run((*dmserver)->slogger)) {
+        dmserver_deinit(dmserver);
+        return;
+    }
 
     // Dmserver-sconn initialization to defaults:
     __dmserver_sconn_set_defaults(&(*dmserver)->sconn);
@@ -91,12 +98,19 @@ bool dmserver_open(dmserver_pt dmserver){
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "dmserver_open() - server connection data initialized.");
 
     if (dmserver->sconn.sssl_enable){
-        if (!_dmserver_sconn_sslinit(&dmserver->sconn)) {_dmserver_sconn_deinit(&dmserver->sconn); return false;}
+        if (!_dmserver_sconn_sslinit(&dmserver->sconn)) {
+            _dmserver_sconn_deinit(&dmserver->sconn);
+            return false;
+        }
         dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "dmserver_open() - server ssl data initialized.");
     }
 
     // Start listening on server socket:
-    if (!_dmserver_sconn_listen(&dmserver->sconn)) {_dmserver_sconn_ssldeinit(&dmserver->sconn); _dmserver_sconn_deinit(&dmserver->sconn); return false;}
+    if (!_dmserver_sconn_listen(&dmserver->sconn)) {
+        _dmserver_sconn_ssldeinit(&dmserver->sconn);
+        _dmserver_sconn_deinit(&dmserver->sconn);
+        return false;
+    }
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "dmserver_open() - server listening, with a backlog of size %d.", SOMAXCONN);
 
     // Server state update:
@@ -327,7 +341,10 @@ bool dmserver_disconnect(dmserver_pt dmserver, dmserver_cliloc_pt dmcliloc){
     epoll_ctl(dmserver->sworker.wsubepfd[dmcliloc->th_pos], EPOLL_CTL_DEL, cli->cfd, NULL);
 
     // Disconnection proccess:
-    if (dmserver->sconn.sssl_enable){SSL_shutdown(cli->cssl); SSL_free(cli->cssl);}
+    if (dmserver->sconn.sssl_enable){
+        SSL_shutdown(cli->cssl);
+        SSL_free(cli->cssl);
+    }
     close(cli->cfd);
 
     // Client state to closed:
@@ -365,17 +382,16 @@ bool dmserver_conf_sconn(dmserver_pt dmserver, dmserver_servconn_conf_pt sconn_c
 
 
     // If there is no configuration structure, set to defaults:
-    if (!sconn_conf) {__dmserver_sconn_set_defaults(&dmserver->sconn); return true;}
+    if (!sconn_conf) {
+        __dmserver_sconn_set_defaults(&dmserver->sconn);
+        return true;
+    }
 
     // Server connection port configuration:
-    if (sconn_conf->sport && (sconn_conf->sport >= 1024) && (sconn_conf->sport <= 65535)){
-        __dmserver_sconn_set_port(&dmserver->sconn, sconn_conf->sport);
-    }
+    if (sconn_conf->sport && (sconn_conf->sport >= 1024) && (sconn_conf->sport <= 65535)) __dmserver_sconn_set_port(&dmserver->sconn, sconn_conf->sport);
 
     // Server connection socket address configuration:
-    if (sconn_conf->ssa_family && ((sconn_conf->ssa_family == AF_INET) || (sconn_conf->ssa_family == AF_INET6))){
-        __dmserver_sconn_set_safamily(&dmserver->sconn, sconn_conf->ssa_family);
-    }
+    if (sconn_conf->ssa_family && ((sconn_conf->ssa_family == AF_INET) || (sconn_conf->ssa_family == AF_INET6))) __dmserver_sconn_set_safamily(&dmserver->sconn, sconn_conf->ssa_family);
 
     // Server connection ipv6 only flag configuration:
     __dmserver_sconn_set_ipv6only(&dmserver->sconn, sconn_conf->sipv6_only);
@@ -384,12 +400,8 @@ bool dmserver_conf_sconn(dmserver_pt dmserver, dmserver_servconn_conf_pt sconn_c
     __dmserver_sconn_set_tls(&dmserver->sconn, sconn_conf->stls_enable);
 
     // Server ssl certification and key path:
-    if (sconn_conf->scert_path && (strlen(sconn_conf->scert_path) < DEFAULT_SCONN_CERTPATHLEN)){
-        __dmserver_sconn_set_certpath(&dmserver->sconn, sconn_conf->scert_path);
-    }
-    if (sconn_conf->skey_path && (strlen(sconn_conf->skey_path) < DEFAULT_SCONN_KEYPATHLEN)){
-        __dmserver_sconn_set_keypath(&dmserver->sconn, sconn_conf->skey_path);
-    }
+    if (sconn_conf->scert_path && (strlen(sconn_conf->scert_path) < DEFAULT_SCONN_CERTPATHLEN)) __dmserver_sconn_set_certpath(&dmserver->sconn, sconn_conf->scert_path);
+    if (sconn_conf->skey_path && (strlen(sconn_conf->skey_path) < DEFAULT_SCONN_KEYPATHLEN)) __dmserver_sconn_set_keypath(&dmserver->sconn, sconn_conf->skey_path);
 
     return true;
 }
@@ -413,7 +425,11 @@ bool dmserver_conf_worker(dmserver_pt dmserver, dmserver_worker_conf_pt worker_c
     if (!__dmserver_worker_dealloc(&dmserver->sworker)) return false;
 
     // If there is no configuration given, set to defaults and exit:
-    if (!worker_conf) { __dmserver_worker_set_defaults(&dmserver->sworker); __dmserver_worker_alloc(&dmserver->sworker); return true;}
+    if (!worker_conf) {
+        __dmserver_worker_set_defaults(&dmserver->sworker);
+        __dmserver_worker_alloc(&dmserver->sworker);
+        return true;
+    }
 
     // Configure subordinate threads number, clients per subordinate thread and timeout per client:
     if (worker_conf->wth_subthreads) __dmserver_worker_set_subthreads(&dmserver->sworker, worker_conf->wth_subthreads);

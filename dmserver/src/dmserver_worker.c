@@ -36,23 +36,44 @@ bool __dmserver_worker_alloc(dmserver_worker_pt w){
 
     // Allocation for subthreads, subthreads epoll:
     w->wsubth = calloc(w->wth_subthreads, sizeof(pthread_t));
-    if (!w->wsubth) {__dmserver_worker_dealloc(w); return false;}
+    if (!w->wsubth) {
+        __dmserver_worker_dealloc(w);
+        return false;
+    }
     w->wsubepfd = calloc(w->wth_subthreads, sizeof(int));
-    if (!w->wsubepfd) {__dmserver_worker_dealloc(w); return false;}
+    if (!w->wsubepfd) {
+        __dmserver_worker_dealloc(w);
+        return false;
+    }
 
     // Allocation for clients queue (including counters):
     w->wccount = calloc(w->wth_subthreads, sizeof(size_t));
-    if (!w->wccount) {__dmserver_worker_dealloc(w); return false;}
+    if (!w->wccount) {
+        __dmserver_worker_dealloc(w);
+        return false;
+    }
     w->wcclis = calloc(w->wth_subthreads, sizeof(dmserver_cliconn_pt));
-    if (!w->wcclis) {__dmserver_worker_dealloc(w); return false;}
+    if (!w->wcclis) {
+        __dmserver_worker_dealloc(w);
+        return false;
+    }
+
     for (size_t i = 0; i < w->wth_subthreads; i++){
         w->wcclis[i] = calloc(w->wth_clispersth, sizeof(dmserver_cliconn_t));
-        if (!w->wcclis[i]) {__dmserver_worker_dealloc(w); return false;}
-        w->wsubepfd[i] = epoll_create1(0);
-        if (w->wsubepfd[i] == -1) {__dmserver_worker_dealloc(w); return false;}
-        for (size_t j = 0; j < w->wth_clispersth; j++){
-            if (!_dmserver_cconn_init(&w->wcclis[i][j])) {__dmserver_worker_dealloc(w); return false;}
+        if (!w->wcclis[i]) {
+            __dmserver_worker_dealloc(w);
+            return false;
         }
+        w->wsubepfd[i] = epoll_create1(0);
+        if (w->wsubepfd[i] == -1) {
+            __dmserver_worker_dealloc(w);
+            return false;
+        }
+
+        for (size_t j = 0; j < w->wth_clispersth; j++){if(!_dmserver_cconn_init(&w->wcclis[i][j])) {
+            __dmserver_worker_dealloc(w);
+            return false;
+        }}
     }
 
     return true;
@@ -199,7 +220,7 @@ void * _dmserver_worker_sub(void * args){
     while (dmserver->sstate == DMSERVER_STATE_RUNNING){
         // Epoll wait for events:
         int nfds = epoll_wait(dmserver->sworker.wsubepfd[dmthindex], evs, dmserver->sworker.wth_clispersth, 4000);
-        if ((nfds < 0)  || (errno == EINTR)) {continue;}
+        if ((nfds < 0)  || (errno == EINTR)) continue;
 
         for (size_t i = 0; i < nfds; i++){
             // Obtain the pointer and check the state of the client that generated the event:
@@ -288,12 +309,18 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
     }
     size_t temp_cindex = 0;
     for (size_t i = 0; i < dmserver->sworker.wth_clispersth; i++){
-        if (dmserver->sworker.wcclis[temp_thindex][i].cstate == DMSERVER_CLIENT_STANDBY) {temp_cindex = i; break;}
+        if (dmserver->sworker.wcclis[temp_thindex][i].cstate == DMSERVER_CLIENT_STANDBY) {
+            temp_cindex = i;
+            break;
+        }
     }
 
     // Check if server capacity is full:
     dmserver_cliconn_pt dmclient = &dmserver->sworker.wcclis[temp_thindex][temp_cindex];
-    if ((dmclient->cstate == DMSERVER_CLIENT_ESTABLISHING) || (dmclient->cstate == DMSERVER_CLIENT_ESTABLISHED)){close(temp_cfd); return;}
+    if ((dmclient->cstate == DMSERVER_CLIENT_ESTABLISHING) || (dmclient->cstate == DMSERVER_CLIENT_ESTABLISHED)){
+        close(temp_cfd);
+        return;
+    }
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d connection stage TCP ok.", temp_cfd);
     dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_DEBUG, "_dmserver_worker_main() - Client %d assigned to point (%lu, %lu).", temp_cfd, temp_thindex, temp_cindex);
 
