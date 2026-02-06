@@ -3,13 +3,43 @@
 // Global server variable:
 dmserver_pt serv;
 
-// Echo function that unicast to the same client the data read from himself:
+// Echo function that broadcast to all clients except the one being read:
 void echo_fn(dmserver_cliconn_pt cli){
     // Reference check:
     if (!cli) return;   
 
-    // Broadcast received data to all clients:
-    dmserver_unicast(serv, &cli->cloc, cli->crbuffer);
+    // Broadcast received data to all clients (chat mode):
+    dmserver_broadcast(serv, &cli->cloc, cli->crbuffer);
+}
+
+// Welcome funciton that unicast to a newer connected client:
+void wc_fn(dmserver_cliconn_pt cli){
+    // Reference check:
+    if (!cli) return;
+
+    // Unicast welcome msg data to new client:
+    char wc_msg[] = "Bienvenido a dmserver!\r\n";
+    dmserver_unicast(serv, &cli->cloc, wc_msg);
+}
+
+// Goodbye function that broadcast the disconnected client to all connected clients:
+void gb_fn(dmserver_cliconn_pt cli){
+    // Reference check:
+    if (!cli) return;
+
+    // Broadcast goodbye msg data to connected clients:
+    char gb_msg[] = "Un cliente se ha desconectad.\r\n";
+    dmserver_broadcast(serv, NULL, gb_msg);
+}
+
+// Timeou function that broadcast the timedout client to all connected clients:
+void to_fn(dmserver_cliconn_pt cli){
+    // Reference check:
+    if (!cli) return;
+
+    // Broadcast timedout msg data to connected clients:
+    char to_msg[] = "Un cliente ha sufrido un timeout.\r\n";
+    dmserver_broadcast(serv, NULL, to_msg);
 }
 
 // MAIN:
@@ -42,20 +72,23 @@ int main(int argc, char ** argv){
 
     // Client buffers configuration:
     if (!dmserver_conf_cconn(serv, &(dmserver_cliconn_conf_t){
-        .cread_buffer_size = 40,
-        .cwrite_buffer_size = 40
+        .cread_buffer_size = 1024,
+        .cwrite_buffer_size = 1024
     })) exit(1);
 
     // Server callbacks set:
     if (!dmserver_set_cb(serv, &(dmserver_callback_conf_t){
-        .on_client_rcv = echo_fn
+        .on_client_timeout = to_fn,
+        .on_client_disconnect = gb_fn,
+        .on_client_connect = wc_fn,
+        .on_client_rcv = echo_fn,
     })) exit(1);
 
     // Server open + run:
     if (!dmserver_open(serv)) exit(1);
     if (!dmserver_run(serv)) exit(1);
 
-    // Simple program loop (cmd -> exit() / broadcast / unicast):
+    // Simple program loop (cmd -> exit / broadcast / unicast / disconnect):
     char c[12] = "";
     char msg[4096] = "";
     while (strcmp(c, "exit")){
@@ -102,9 +135,9 @@ int main(int argc, char ** argv){
         // Disconnect command issued:
         if (!strcmp(c, "disconnect")){
             int i[2] = {0};
-            printf("> Unicast th_pos: ");
+            printf("> Client th_pos: ");
             scanf("%d", &i[0]);
-            printf("> Unicast wc_pos: ");
+            printf("> Client wc_pos: ");
             scanf("%d", &i[1]);
             getchar();
             dmserver_disconnect(serv, &(dmserver_cliloc_t){.th_pos=i[0], .wc_pos=i[1]});
@@ -124,4 +157,5 @@ int main(int argc, char ** argv){
 
     return 0;
 }
+
 

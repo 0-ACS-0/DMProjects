@@ -381,6 +381,9 @@ static void _dmserver_helper_smanager(dmserver_pt dmserver){
         inet_ntop(dmclient->caddr_family, addr, cip_str, sizeof(cip_str));
         int cport_num = (dmclient->caddr_family == AF_INET) ? ntohs(dmclient->caddr.c4.sin_port) : ntohs(dmclient->caddr.c6.sin6_port);
         dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", dmclient->cfd, cip_str, cport_num);
+
+        // On client connect callback event:
+        if (dmserver->scallback.on_client_connect) dmserver->scallback.on_client_connect(&dmserver->sworker.wcclis[dmclient->cloc.th_pos][dmclient->cloc.wc_pos]);
     }
     dmserver->sworker.wccount[temp_thindex]++;
 }
@@ -425,6 +428,9 @@ static bool _dmserver_helper_csslhandshake(dmserver_pt dmserver, dmserver_clicon
             inet_ntop(c->caddr_family, addr, cip_str, sizeof(cip_str));
             int cport_num = (c->caddr_family == AF_INET) ? ntohs(c->caddr.c4.sin_port) : ntohs(c->caddr.c6.sin6_port);
             dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d with address %s:%d connected to server.\n", c->cfd, cip_str, cport_num);
+
+            // On client connect callback event:
+            if (dmserver->scallback.on_client_connect) dmserver->scallback.on_client_connect(&dmserver->sworker.wcclis[c->cloc.th_pos][c->cloc.wc_pos]);
             return true;
 
         case SSL_ERROR_WANT_READ:
@@ -463,9 +469,10 @@ static bool _dmserver_helper_cctimeout(dmserver_pt dmserver, dmserver_cliconn_pt
 
     // Timeout check and process:
     if(!_dmserver_cconn_checktimeout(dmclient, dmserver->sworker.wth_clistimeout)){
-        if (dmserver->scallback.on_client_timeout) dmserver->scallback.on_client_timeout(dmclient);
         dmlogger_log(dmserver->slogger, DMLOGGER_LEVEL_INFO, "Client %d timedout, closing connection...", dmclient->cfd);
         dmserver_disconnect(dmserver, &(dmserver_cliloc_t){.th_pos=dmclient->cloc.th_pos, .wc_pos=dmclient->cloc.wc_pos});
+
+        if (dmserver->scallback.on_client_timeout) dmserver->scallback.on_client_timeout(dmclient);
         return false;
     }
 
