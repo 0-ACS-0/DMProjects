@@ -1,8 +1,9 @@
 # Dmserver user-guide
 ## Table of contents
 - [Introduction](#introduction)
-- [Build script](#bscript)
-- [Getting started](#gstarted)
+- [Build script](#build-script)
+- [Set-up](#set-up)
+- [Workflow](#workflow)
 
 ## Introduction
 This, is **dmserver**. A fun-to-make proyect made from scratch with the only purpose of learning and creating a fun tool to use and have control over for my future self. 
@@ -52,4 +53,19 @@ But this is only an example, and you can modify everything freely. The structure
 
 I recommend this as a footprint for further testing.
 
-## Getting started
+## Set-up
+So, you want to use this server implementation to develope your own program. Is really simple to use but have in mind that I intentionally coupled *dmserver* with *dmlogger* (a custom logger used inside the server, also made by me). You can consider it a single block.
+
+First, you must locate the *libs/* folder. Inside you will found the two libraries necessary to work with *dmserver*. Simply copy that folder into your own workspace, or add the route of those libraries to your **PATH** enviroment variable to make it accessible to your compiler (the rest of the getting started section will assume that you copied the folder *libs/* in your workspace). 
+
+I made both, loggin and server, a shared object file. So, if you compile with *gcc* you must add always ``` -L{path to the library folder} -l{.so file} ```. In this case just add:
+
+```
+gcc [...] -L./libs/dmlogger -ldmlogger -L./libs/dmserver -ldmserver [...]
+```
+
+In your code, only add the line ``` #include "./libs/dmserver/dmserver.h"``` in top. Afterwards you will have all the functionality available in your program.
+
+## Workflow
+> Note: In the source code *dmserver_test.c* there is a complete example of the usage and workflow of *dmserver*. I recommend reading and understanding that in order to use it, better than only reading this doc. I will write it anyways.
+
