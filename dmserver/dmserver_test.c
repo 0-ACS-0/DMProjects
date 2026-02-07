@@ -1,48 +1,15 @@
 #include "./inc/dmserver.h"
 
-// Global server variable:
+// ---- Global server variable:
 dmserver_pt serv;
 
-// Echo function that broadcast to all clients except the one being read:
-void echo_fn(dmserver_cliconn_pt cli){
-    // Reference check:
-    if (!cli) return;   
+// ---- Callback functions prototypes:
+void echo_fn(dmserver_cliconn_pt cli);
+void wc_fn(dmserver_cliconn_pt cli);
+void gb_fn(dmserver_cliconn_pt cli);
+void to_fn(dmserver_cliconn_pt cli);
 
-    // Broadcast received data to all clients (chat mode):
-    dmserver_broadcast(serv, &cli->cloc, cli->crbuffer);
-}
-
-// Welcome funciton that unicast to a newer connected client:
-void wc_fn(dmserver_cliconn_pt cli){
-    // Reference check:
-    if (!cli) return;
-
-    // Unicast welcome msg data to new client:
-    char wc_msg[] = "Bienvenido a dmserver!\r\n";
-    dmserver_unicast(serv, &cli->cloc, wc_msg);
-}
-
-// Goodbye function that broadcast the disconnected client to all connected clients:
-void gb_fn(dmserver_cliconn_pt cli){
-    // Reference check:
-    if (!cli) return;
-
-    // Broadcast goodbye msg data to connected clients:
-    char gb_msg[] = "Un cliente se ha desconectad.\r\n";
-    dmserver_broadcast(serv, NULL, gb_msg);
-}
-
-// Timeou function that broadcast the timedout client to all connected clients:
-void to_fn(dmserver_cliconn_pt cli){
-    // Reference check:
-    if (!cli) return;
-
-    // Broadcast timedout msg data to connected clients:
-    char to_msg[] = "Un cliente ha sufrido un timeout.\r\n";
-    dmserver_broadcast(serv, NULL, to_msg);
-}
-
-// MAIN:
+// ---- Main program:
 int main(int argc, char ** argv){
     // Server initialization:
     dmserver_init(&serv);
@@ -158,4 +125,45 @@ int main(int argc, char ** argv){
     return 0;
 }
 
+
+
+// ---- Callback functions:
+// Echo function that broadcast to all clients except the one being read:
+void echo_fn(dmserver_cliconn_pt cli){
+    // Reference check:
+    if (!cli) return;   
+
+    // Broadcast received data to all clients (chat mode):
+    dmserver_broadcast(serv, &cli->cloc, cli->crbuffer);
+}
+
+// Welcome funciton that unicast to a newer connected client:
+void wc_fn(dmserver_cliconn_pt cli){
+    // Reference check:
+    if (!cli) return;
+
+    // Unicast welcome msg data to new client:
+    char wc_msg[] = "Bienvenido a dmserver!\r\n";
+    dmserver_unicast(serv, &cli->cloc, wc_msg);
+}
+
+// Goodbye function that broadcast the disconnected client to all connected clients:
+void gb_fn(dmserver_cliconn_pt cli){
+    // Reference check:
+    if (!cli) return;
+
+    // Broadcast goodbye msg data to connected clients:
+    char gb_msg[] = "Un cliente se ha desconectad.\r\n";
+    dmserver_broadcast(serv, NULL, gb_msg);
+}
+
+// Timeou function that broadcast the timedout client to all connected clients:
+void to_fn(dmserver_cliconn_pt cli){
+    // Reference check:
+    if (!cli) return;
+
+    // Broadcast timedout msg data to connected clients:
+    char to_msg[] = "Un cliente ha sufrido un timeout.\r\n";
+    dmserver_broadcast(serv, NULL, to_msg);
+}
 
