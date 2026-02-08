@@ -256,24 +256,24 @@ class DMClient():
 
 if __name__ == "__main__":
     def rcv_user_callback(msg: str):
-        print(f"[<<] Recibido: {msg}")
+        print(f"[<<] Recibido: {msg} \n('exit' to exit) >> ", end="")
 
     def c_user_callback():
-        print("[!] Advertencia: Cliente conectado con el servidor.")
+        print("[!] Advertencia: Cliente conectado con el servidor. \n('exit' to exit) >> ", end="")
     def dc_user_callback():
-        print("[!] Advertencia: Cliente desconectado.")
+        print("[!] Advertencia: Cliente desconectado. \n('exit' to exit) >> ", end="")
         cli.disconnect()
 
-    cli = DMClient(cuse_ssl=False, sport=7890, shost="127.0.0.1")
+    cli = DMClient(cuse_ssl=True, sport=7890, shost="127.0.0.1")
     cli.setOnConnect(c_user_callback)
     cli.setOnDisconnect(dc_user_callback)
     cli.setOnReceive(rcv_user_callback)
     cli.connect()
 
     c = ""
-    while c != "exit()":
+    while c != "exit":
         cli.send(c) 
-        c = input(">> ")
+        c = input("('exit' to exit) >> ")
 
         if c == "connect":
             if not cli.isConnected():
