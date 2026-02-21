@@ -3,7 +3,7 @@ from enum import IntEnum
 import os
 
 # Load libdmlogger shared object:
-so_path = os.path.realpath("libdmlogger.so.link")
+so_path = os.path.realpath("./libdmlogger.so.link")
 dmlogger = CDLL(so_path)
 
 # Void pointer referenc to dmlogger into python:
@@ -110,7 +110,7 @@ class DMLogger:
         
         Args:
             -outputSel(OutputSelect): An item of the internal class OutputSelect used to select the output.
-            -**kwargs: Keyword arguments specific to the selected output selected, which are:
+            -**kwargs: Keyword arguments specific to the selected output, which are:
                 For self.OutputSelect.FILE -> path: str (Path to the directory of the file)
                                            -> name: str (Base name of the log file to use, created if non-existing)
                                            -> rotf_bydate: bool (Rotate the file by change of the date)
@@ -214,7 +214,7 @@ class DMLogger:
         dmlogger.dmlogger_log(self._logger, lvl, msg.encode())
 
     def flush(self) -> bool:
-        """ Function to flush the entire logger queue into output. ¡Blocks until is done! """
+        """ Function to flush the entire logger queue into output. ¡Blocks until is done or fails after 4 secs! """
         return dmlogger.dmlogger_flush(self._logger)
 
 
@@ -225,4 +225,4 @@ if __name__ == "__main__":
     logger.configureMinlvl(logger.Level.DEBUG)
 
     usuario = input("Nombre de usuario: ")
-    logger.log(logger.Level.INFO, f"({usuario})Todo correcto!")
+    logger.log(logger.Level.INFO, f"({usuario}) Todo correcto!")

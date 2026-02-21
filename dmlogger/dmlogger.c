@@ -388,6 +388,9 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
     // Parameters pointers check:
     if (!dmlogger || !log_fmsg) return;
 
+    // State check:
+    if (dmlogger->state != DMLOGGER_STATE_RUNNING) return;
+
     // Minimum level check:
     if (level < dmlogger->min_level) return;
 
@@ -397,10 +400,11 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
     // Extract the timestamp formatted string:
     struct timespec ts_info;
     clock_gettime(CLOCK_REALTIME, &ts_info);
-    struct tm * tm_info;
-    tm_info = localtime(&ts_info.tv_sec);
 
-    strftime(entry.timestamp, DEFAULT_ENTRY_TIMESTAMPLEN, "%Y-%m-%d %H:%M:%S", tm_info);
+    struct tm tm_info;
+    localtime_r(&ts_info.tv_sec, &tm_info);
+
+    strftime(entry.timestamp, DEFAULT_ENTRY_TIMESTAMPLEN, "%Y-%m-%d %H:%M:%S", &tm_info);
     sprintf(entry.timestamp + strlen(entry.timestamp), ".%09ld", ts_info.tv_nsec);
     entry.timestamp[DEFAULT_ENTRY_TIMESTAMPLEN - 1] = '\0';
 
@@ -463,11 +467,11 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
 
 /*
     @brief Function to force the complete write of entries withing the queue when called.
-    @note: Blocking behaveour!
+    @note: Blocking behaveour, maximum 4 seconds!
 
     @param dmlogger_pt dmlogger: Reference to dmlogger struct.
 
-    @retval false: If error when flushing.
+    @retval false: If error or timeout when flushing.
     @retval true: If flushed correctly.
 */
 bool dmlogger_flush(dmlogger_pt dmlogger){
@@ -485,9 +489,20 @@ bool dmlogger_flush(dmlogger_pt dmlogger){
     dmlogger->queue.is_flushing = true;
     pthread_cond_signal(&dmlogger->queue.cons_cond);
 
+    // Flushing timeout (4 sec.):
+    struct timespec to; 
+    clock_gettime(CLOCK_REALTIME, &to); 
+    to.tv_sec += 4;
+
     // Wait blocked until the consumer thread finished writting the queue (until queue is empty):
     while (dmlogger->queue.head != dmlogger->queue.tail){
-        pthread_cond_wait(&dmlogger->queue.empty_cond, &dmlogger->queue.cons_mutex);
+        if(pthread_cond_timedwait(&dmlogger->queue.empty_cond, &dmlogger->queue.cons_mutex, &to)){
+            // Unblocks producers and consumer (with error return):
+            dmlogger->queue.is_flushing = false;
+            pthread_mutex_unlock(&dmlogger->queue.cons_mutex);
+            pthread_mutex_unlock(&dmlogger->queue.prod_mutex);
+            return false;
+        }
     }
 
     // Unblocks producers and consumer:
@@ -639,7 +654,7 @@ static bool __dmlogger_rotate_file_bydate(dmlogger_pt dmlogger){
     struct tm prev_lt;
     localtime_r(&dmlogger->output.file.date, &prev_lt);
 
-    if ((lt.tm_year == prev_lt.tm_year) && (lt.tm_mon == prev_lt.tm_mon) && (lt.tm_mday == prev_lt.tm_mday)) return false;
+    if ((lt.tm_year == prev_lt.tm_year) && (lt.tm_mon == prev_lt.tm_mon) && (lt.tm_mday == prev_lt.tm_mday)) return true;
     dmlogger->output.file.date = t; 
     dmlogger->output.file.index = 0;
 
@@ -677,7 +692,7 @@ static bool __dmlogger_rotate_file_bysize(dmlogger_pt dmlogger, size_t log_fullm
     if (!dmlogger->output.file.size_rot) return false;
 
     // Size comparison:
-    if ((dmlogger->output.file.size + log_fullmsg_size) <= dmlogger->output.file.max_size) return false;
+    if ((dmlogger->output.file.size + log_fullmsg_size) <= dmlogger->output.file.max_size) return true;
     if (dmlogger->output.file.size) dmlogger->output.file.index++;
     dmlogger->output.file.size = 0;
 

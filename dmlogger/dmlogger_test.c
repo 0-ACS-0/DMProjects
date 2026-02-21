@@ -2,19 +2,26 @@
 
 
 int main(int argc, char ** argv){
+    // Logger variable:
     dmlogger_pt logger;
+    
+    // Logger initialization:
     dmlogger_init(&logger);
     if (!logger) exit(1);
 
+    // Logger run:
     if(!dmlogger_run(logger)) exit(1);
 
+    // First log test (before configurations):
     dmlogger_log(logger,DMLOGGER_LEVEL_DEBUG, "This is a log message, addres of logger: %p", logger);
 
+    // Logger configurations:
     if(!dmlogger_conf_output_file(logger, "./logs/", "log", false, false, 0)) exit(1);
-    if(dmlogger_conf_queue_ofpolicy(logger, DMLOGGER_OFPOLICY_WAIT_TIMEOUT, 1)) exit(1);
-    if(dmlogger_conf_queue_capacity(logger, 1)) exit(1);
-    if(dmlogger_conf_logger_minlvl(logger, DMLOGGER_LEVEL_DEBUG)) exit(1);
+    if(!dmlogger_conf_queue_ofpolicy(logger, DMLOGGER_OFPOLICY_WAIT_TIMEOUT, 1)) exit(1);
+    if(!dmlogger_conf_queue_capacity(logger, 1)) exit(1);
+    if(!dmlogger_conf_logger_minlvl(logger, DMLOGGER_LEVEL_DEBUG)) exit(1);
 
+    // Logger log level tests:
     dmlogger_log(logger,DMLOGGER_LEVEL_DEBUG, "This is a log message, addres of logger: %p", logger);
     dmlogger_log(logger,DMLOGGER_LEVEL_INFO, "This is a log message, addres of logger: %p", logger);
     dmlogger_log(logger,DMLOGGER_LEVEL_NOTIFY, "This is a log message, addres of logger: %p", logger);
@@ -22,6 +29,7 @@ int main(int argc, char ** argv){
     dmlogger_log(logger,DMLOGGER_LEVEL_ERROR, "This is a log message, addres of logger: %p", logger);
     dmlogger_log(logger,DMLOGGER_LEVEL_FATAL, "This is a log message, addres of logger: %p", logger);
 
+    // Logger deinitialization:
     dmlogger_deinit(&logger);
     return 0;
 }
