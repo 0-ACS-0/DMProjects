@@ -154,9 +154,8 @@ struct dmlogger_queue{
     bool is_flushing;                       // Entry queue flushing flag.
     pthread_cond_t empty_cond;              // Entry queue empty cond.
 
-    pthread_mutex_t prod_mutex;             // Entry queue producer mutex.
+    pthread_mutex_t queue_mutex;            // Entry queue producer mutex.
     pthread_cond_t prod_cond;               // Entry queue producer cond.
-    pthread_mutex_t cons_mutex;             // Entry queue consumer mutex (needed for cons_cond).
     pthread_cond_t cons_cond;               // Entry queue consumer cond.
 };
 
