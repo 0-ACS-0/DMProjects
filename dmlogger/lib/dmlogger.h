@@ -36,12 +36,13 @@
 
 // Threads:
 #include <pthread.h>
+#include <stdatomic.h>
 
 // Time:
 #include <time.h>
 
 /* ---- Defines & macros ------------------------------------------ */
-#define DEFAULT_ENTRY_TIMESTAMPLEN 32   // 32B   
+#define DEFAULT_ENTRY_TIMESTAMPLEN 46   // 46B   
 #define DEFAULT_ENTRY_LEVELLEN 8        // 8B
 #define DEFAULT_ENTRY_MESSAGELEN 128    // 128B
 #define DEFAULT_ENTRY_EXTRALEN 32       // 32B
@@ -165,7 +166,7 @@ struct dmlogger{
     struct dmlogger_queue queue;            // Queue structure of dmlogger.
 
     enum dmlogger_level min_level;          // Minimum level to be logged of dmlogger.
-    enum dmlogger_state state;              // State of dmlogger.
+    atomic_int state;              // State of dmlogger.
     
     pthread_t logger_th;                    // Logger (consumer) thread - Only one per instance.
 };

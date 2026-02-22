@@ -151,11 +151,11 @@ bool dmlogger_conf_output_file(dmlogger_pt dmlogger, const char * file_path, con
     // Local date:
     time_t t = time(NULL);
     struct tm lt;
-    localtime_r(&t, &lt);
+    gmtime_r(&t, &lt);
 
     // Check dates and upgrade the file date and index if is a new day:
     struct tm prev_lt;
-    localtime_r(&dmlogger->output.file.date, &prev_lt);
+    gmtime_r(&dmlogger->output.file.date, &prev_lt);
 
     if ((lt.tm_year != prev_lt.tm_year) || (lt.tm_mon != prev_lt.tm_mon) || (lt.tm_mday != prev_lt.tm_mday)) {dmlogger->output.file.date = t; dmlogger->output.file.index = 0;}
 
@@ -396,10 +396,12 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
     clock_gettime(CLOCK_REALTIME, &ts_info);
 
     struct tm tm_info;
-    localtime_r(&ts_info.tv_sec, &tm_info);
+    gmtime_r(&ts_info.tv_sec, &tm_info);
 
-    strftime(entry.timestamp, DEFAULT_ENTRY_TIMESTAMPLEN, "%Y-%m-%d %H:%M:%S", &tm_info);
-    sprintf(entry.timestamp + strlen(entry.timestamp), ".%09ld", ts_info.tv_nsec);
+    // Time stamp with ISO 8601 format for logging:
+    snprintf(entry.timestamp, DEFAULT_ENTRY_TIMESTAMPLEN, "%04d-%02d-%02dT%02d:%02d:%02d.%03luZ",
+            tm_info.tm_year + 1900, tm_info.tm_mon + 1, tm_info.tm_mday,
+            tm_info.tm_hour, tm_info.tm_min, tm_info.tm_sec, ts_info.tv_nsec/1000000);    
     entry.timestamp[DEFAULT_ENTRY_TIMESTAMPLEN - 1] = '\0';
 
     // Extract level string:
@@ -421,13 +423,10 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
             case DMLOGGER_OFPOLICY_DROP:
                 pthread_mutex_unlock(&dmlogger->queue.queue_mutex); 
                 return;
-                break;
 
             case DMLOGGER_OFPOLICY_OVERWRITE:
-                pthread_mutex_lock(&dmlogger->queue.queue_mutex);
                 dmlogger->queue.head++;
                 dmlogger->queue.head %= dmlogger->queue.capacity;                
-                pthread_mutex_unlock(&dmlogger->queue.queue_mutex);
                 break;
 
             case DMLOGGER_OFPOLICY_WAIT:
@@ -440,7 +439,7 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
                 {
                 struct timespec timeout;
                 clock_gettime(CLOCK_REALTIME, &timeout);
-                timeout.tv_sec += 1;
+                timeout.tv_sec += dmlogger->queue.wait_timeout;
 
                 while (dmlogger->queue.head == ((dmlogger->queue.tail + 1)%dmlogger->queue.capacity)){
                    if(pthread_cond_timedwait(&dmlogger->queue.prod_cond, &dmlogger->queue.queue_mutex, &timeout)) {pthread_mutex_unlock(&dmlogger->queue.queue_mutex); return;}
@@ -453,10 +452,12 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
     dmlogger->queue.equeue[dmlogger->queue.tail++] = entry;
     dmlogger->queue.tail %= dmlogger->queue.capacity;
 
-    pthread_mutex_unlock(&dmlogger->queue.queue_mutex);
-
     // Signal the consumer thread:
     pthread_cond_signal(&dmlogger->queue.cons_cond);
+
+    pthread_mutex_unlock(&dmlogger->queue.queue_mutex);
+
+
 }
 
 /*
@@ -565,6 +566,7 @@ static bool __dmlogger_logger_write(dmlogger_pt dmlogger, struct dmlogger_entry 
     // Formed log entry:
     char fullmsg[DEFAULT_ENTRY_TIMESTAMPLEN + DEFAULT_ENTRY_LEVELLEN + DEFAULT_ENTRY_MESSAGELEN + DEFAULT_ENTRY_EXTRALEN];
     snprintf(fullmsg, sizeof(fullmsg), "%s | [%s]: %s", entry->timestamp, entry->level, entry->message);
+    fullmsg[sizeof(fullmsg) - 1] = '\0';
 
     // Output selection:
     pthread_mutex_lock(&dmlogger->output.mutex);
@@ -638,10 +640,10 @@ static bool __dmlogger_rotate_file_bydate(dmlogger_pt dmlogger){
     // Dates comparison & output update:
     time_t t = time(NULL);
     struct tm lt;
-    localtime_r(&t, &lt);
+    gmtime_r(&t, &lt);
 
     struct tm prev_lt;
-    localtime_r(&dmlogger->output.file.date, &prev_lt);
+    gmtime_r(&dmlogger->output.file.date, &prev_lt);
 
     if ((lt.tm_year == prev_lt.tm_year) && (lt.tm_mon == prev_lt.tm_mon) && (lt.tm_mday == prev_lt.tm_mday)) return true;
     dmlogger->output.file.date = t; 
@@ -678,7 +680,7 @@ static bool __dmlogger_rotate_file_bysize(dmlogger_pt dmlogger, size_t log_fullm
     if (dmlogger->output.osel != DMLOGGER_OUTPUT_FILE) return false;
 
     // Rotate file by date flag set check (if is not set, return as no error!):
-    if (!dmlogger->output.file.size_rot) return false;
+    if (!dmlogger->output.file.size_rot) return true;
 
     // Size comparison:
     if ((dmlogger->output.file.size + log_fullmsg_size) <= dmlogger->output.file.max_size) return true;
@@ -690,7 +692,7 @@ static bool __dmlogger_rotate_file_bysize(dmlogger_pt dmlogger, size_t log_fullm
 
     // Get the current date:
     struct tm lt;
-    localtime_r(&dmlogger->output.file.date, &lt);
+    gmtime_r(&dmlogger->output.file.date, &lt);
 
     // Complete file name (path + basename + date + file index):
     char filename[DEFAULT_OUTPUT_FILE_BASENAMELEN + DEFAULT_OUTPUT_FILE_PATHLEN + DEFAULT_OUTPUT_FILE_EXTRALEN] = {0};
