@@ -167,6 +167,7 @@ bool dmlogger_conf_output_file(dmlogger_pt dmlogger, const char * file_path, con
 
         // Open file:
         dmlogger->output.file.fd = fopen(filename, "a");
+        setvbuf(dmlogger->output.file.fd, NULL, _IOLBF, 0);
         if (!dmlogger->output.file.fd) {pthread_mutex_unlock(&dmlogger->output.mutex); return false;}
 
         // Check file size:
@@ -393,7 +394,7 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
 
     // Extract the timestamp formatted string:
     struct timespec ts_info;
-    clock_gettime(CLOCK_REALTIME, &ts_info);
+    clock_gettime(CLOCK_REALTIME_COARSE, &ts_info);
 
     struct tm tm_info;
     gmtime_r(&ts_info.tv_sec, &tm_info);
@@ -418,6 +419,9 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
     // Queue management and dump of entry to it:
     pthread_mutex_lock(&dmlogger->queue.queue_mutex);
 
+    // Check if queue is empty in order to wake-up consumer only when necessary:
+    bool is_empty = (dmlogger->queue.head == dmlogger->queue.tail);
+
     if (dmlogger->queue.head == ((dmlogger->queue.tail + 1)%dmlogger->queue.capacity)){
         switch (dmlogger->queue.of_policy){
             case DMLOGGER_OFPOLICY_DROP:
@@ -438,7 +442,7 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
             case DMLOGGER_OFPOLICY_WAIT_TIMEOUT:
                 {
                 struct timespec timeout;
-                clock_gettime(CLOCK_REALTIME, &timeout);
+                clock_gettime(CLOCK_REALTIME_COARSE, &timeout);
                 timeout.tv_sec += dmlogger->queue.wait_timeout;
 
                 while (dmlogger->queue.head == ((dmlogger->queue.tail + 1)%dmlogger->queue.capacity)){
@@ -453,7 +457,7 @@ void dmlogger_log(dmlogger_pt dmlogger, enum dmlogger_level level, const char * 
     dmlogger->queue.tail %= dmlogger->queue.capacity;
 
     // Signal the consumer thread:
-    pthread_cond_signal(&dmlogger->queue.cons_cond);
+    if (is_empty) pthread_cond_signal(&dmlogger->queue.cons_cond);
 
     pthread_mutex_unlock(&dmlogger->queue.queue_mutex);
 
@@ -485,7 +489,7 @@ bool dmlogger_flush(dmlogger_pt dmlogger){
 
     // Flushing timeout (4 sec.):
     struct timespec to; 
-    clock_gettime(CLOCK_REALTIME, &to); 
+    clock_gettime(CLOCK_REALTIME_COARSE, &to); 
     to.tv_sec += 4;
 
     // Wait blocked until the consumer thread finished writting the queue (until queue is empty):
@@ -658,6 +662,7 @@ static bool __dmlogger_rotate_file_bydate(dmlogger_pt dmlogger){
 
     // Open file:
     dmlogger->output.file.fd = fopen(filename, "a");
+    setvbuf(dmlogger->output.file.fd, NULL, _IOLBF, 0);
     if (!dmlogger->output.file.fd) {return false;}
 
     return true;
@@ -700,6 +705,7 @@ static bool __dmlogger_rotate_file_bysize(dmlogger_pt dmlogger, size_t log_fullm
 
     // Open file:
     dmlogger->output.file.fd = fopen(filename, "a");
+    setvbuf(dmlogger->output.file.fd, NULL, _IOLBF, 0);
     if (!dmlogger->output.file.fd) {return false;}
 
     return true;
