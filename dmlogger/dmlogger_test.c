@@ -1,10 +1,10 @@
 #include "dmlogger.h"
 #include <time.h>
 
-#define TEST_THREADS 4          // Númber of threads used in test.
+#define TEST_THREADS 16          // Númber of threads used in test.
 #define TEST_LOGS    200000     // Númber of logs per thread.
-#define TEST_QUEUE_BUFFER 400   // Buffer length.
-#define TEST_QUEUE_POLICY DMLOGGER_OFPOLICY_DROP // Policy of queue overflow.
+#define TEST_QUEUE_BUFFER 4000000   // Buffer length.
+#define TEST_QUEUE_POLICY DMLOGGER_OFPOLICY_WAIT_TIMEOUT // Policy of queue overflow.
 
 // Test thread that will log a bunch of logs:
 void * test_th(void * arg)
@@ -33,7 +33,7 @@ int main(int argc, char ** argv){
 
     // Logger configurations:
     if(!dmlogger_conf_output_file(logger, "./logs/", "log", false, false, 0)) goto error;
-    if(!dmlogger_conf_queue_ofpolicy(logger, TEST_QUEUE_POLICY, 1)) goto error;
+    if(!dmlogger_conf_queue_ofpolicy(logger, TEST_QUEUE_POLICY, 2)) goto error;
     if(!dmlogger_conf_queue_capacity(logger, TEST_QUEUE_BUFFER)) goto error;
     if(!dmlogger_conf_logger_minlvl(logger, DMLOGGER_LEVEL_DEBUG)) goto error;
 
