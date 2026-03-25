@@ -1,0 +1,4 @@
+#ifndef DMDTYPES_HEADER
+#define DMDTYPES_HEADER
+
+#endif
