@@ -4,7 +4,7 @@
 # -------------------------------- #
 CC=gcc
 CFLAGS="-g3 -Wall -O0"
-CFLAGS_LIB="-std=c99 -shared -fPIC -Wall -O2"
+CFLAGS_LIB="-std=c99 -Wall -O2"
 
 SRC_DIR="./src/"
 INC_DIR="./inc/"
@@ -12,8 +12,11 @@ BUILD_DIR="./build/"
 SRC=$(find "$SRC_DIR" -name "*.c")
 INC=$(find "$INC_DIR" -name "*.h")
 
-LIB_NAME=libdmdtypes.so
+LIB_NAME=libdmds
 LIB_DIR="$BUILD_DIR"lib/
+LIB_HDR=dmds.h
+OBJ_DIR="$BUILD_DIR"obj/
+OBJ_FILES=""
 TEST_DIR="$BUILD_DIR"test/
 # -------------------------------- #
 
@@ -44,8 +47,7 @@ if [ "$1" == "test" ]; then
         TEST_NAME="$2".elf
     else 
         echo "[BUILD-ERR]: No se ha indicado el nombre del código fuente del test."
-        echo
-        exit
+        exit 1
     fi
 
     # Compilación y ejecución con mensajes:
@@ -53,7 +55,9 @@ if [ "$1" == "test" ]; then
     if $CC $CFLAGS -I$INC_DIR $SRC $TEST_SRC -o $TEST_DIR$TEST_NAME; then
         echo "[BUILD-TEST]: Compilación finalizada con éxito en $TEST_DIR$TEST_NAME."
         echo "[BUILD-TEST]: Ejecutando programa de test $TEST_NAME..."
+        echo
         $TEST_DIR$TEST_NAME
+        echo
         echo "[BUILD-TEST]: Ejecución finalizada con código $?"
     else
         echo "[BUILD-ERR]: Error de compilación."
@@ -63,7 +67,15 @@ if [ "$1" == "test" ]; then
 # CMD: lib 
 elif [ "$1" == "lib" ]; then
     echo
-    # Generación del directorio de librería (bajo build) si no existe:
+    #Generación del directorio de objetos (bajo build) si no existe:
+    if [ ! -d $OBJ_DIR ]; then
+        echo "[BUILD-LIB]: Generando directorio $OBJ_DIR..."
+        mkdir -p $OBJ_DIR
+        echo "[BUILD-LIB]: Directorio generado."
+        echo
+    fi
+
+    # Generación del directorio de librerías (bajo build) si no existe:
     if [ ! -d $LIB_DIR ]; then
         echo "[BUILD-LIB]: Generando directorio $LIB_DIR..."
         mkdir -p $LIB_DIR
@@ -71,11 +83,47 @@ elif [ "$1" == "lib" ]; then
         echo
     fi
 
-    echo "[BUILD-LIB: Compilando librería $LIB_NAME..."
-    if $CC $CFLAGS_LIB $SRC -o $LIB_DIR$LIB_NAME; then
-        echo "[BUILD-LIB]: Compilación finalizada con éxito en $LIB_DIR$LIB_NAME."
+    # Copia del fichero de cabecera de la librería:
+    if [ -f $INC_DIR$LIB_HDR ]; then
+        echo "[BUILD-LIB]: Copiando fichero de cabecera de librería $INC_DIR$LIB_HDR..."
+        cp $INC_DIR$LIB_HDR $LIB_DIR
+        echo "[BUILD-LIB]: Fichero de cabecera copiado correctamente en $LIB_DIR$LIB_HDR."
+        echo
     else
-        echo "[BUILD-ERR]: Error de compilación."
+        echo "[BUILD-ERR]: No existe el fichero de cabecera $INC_DIR$LIB_HDR."
+        exit 1
+    fi
+
+    # Compilación de la librería estática (.a):
+    for file in $SRC; do
+        obj="$OBJ_DIR$(basename "$file" .c).o"
+        echo "[BUILD-LIB]: Compilando objeto $obj..."
+
+        if $CC $CFLAGS_LIB -c -fPIC "$file" -I"$INC_DIR" -o "$obj"; then
+            OBJ_FILES="$OBJ_FILES $obj"
+        else
+            echo "[BUILD-ERR]: Error compilando $file."
+            exit 1
+        fi
+
+        echo "[BUILD-LIB]: Objeto $obj compilado con éxito."
+    done
+    echo "[BUILD-LIB]: Generando librería estática $LIB_NAME.a..."
+    if ar rcs "$LIB_DIR$LIB_NAME".a $OBJ_FILES; then
+        echo "[BUILD-LIB]: Librería estática generada en $LIB_DIR$LIB_NAME.a"
+        echo
+    else 
+        echo "[BUILD-LIB]: Error generando $LIB_NAME.a"
+        exit 1
+    fi
+
+    # Compilación de la librería dinámica (.so):
+    echo "[BUILD-LIB]: Compilando librería dinámica $LIB_NAME.so..."
+    if $CC $CFLAGS_LIB -shared $OBJ_FILES -o "$LIB_DIR$LIB_NAME".so; then
+        echo "[BUILD-LIB]: Compilación finalizada con éxito en $LIB_DIR$LIB_NAME.so."
+    else
+        echo "[BUILD-ERR]: Error generando $LIB_NAME.so."
+        exit 1
     fi
     echo
 
